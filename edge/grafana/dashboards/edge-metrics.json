@@ -1,0 +1,157 @@
+{
+  "dashboard": {
+    "title": "SafeSignal Edge Metrics",
+    "tags": ["safesignal", "edge", "mvp"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "5s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Alert Trigger Latency (P95)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(alert_trigger_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95 Latency",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(alert_trigger_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50 Latency",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency"},
+          {"format": "short"}
+        ],
+        "thresholds": [
+          {
+            "value": 2,
+            "colorMode": "critical",
+            "op": "gt",
+            "fill": true,
+            "line": true
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "PA Playback Success Ratio",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "pa_playback_success_ratio",
+            "legendFormat": "Success Ratio",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percentunit", "label": "Success Rate", "max": 1, "min": 0},
+          {"format": "short"}
+        ],
+        "thresholds": [
+          {
+            "value": 0.99,
+            "colorMode": "critical",
+            "op": "lt",
+            "fill": true,
+            "line": true
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Alerts Processed Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(alerts_processed_total{state=\"policy_evaluated\"}[1m])",
+            "legendFormat": "Processed",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(alerts_rejected_total[1m])",
+            "legendFormat": "Rejected - {{reason}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Alerts/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Deduplication Cache",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "dedup_cache_size",
+            "legendFormat": "Cache Size",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(dedup_hits_total[1m])",
+            "legendFormat": "Dedup Hits/sec",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Count"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "MQTT Messages",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(mqtt_messages_total{type=\"alert\",status=\"received\"}[1m])",
+            "legendFormat": "Alerts Received",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(mqtt_messages_total{type=\"pa_command\",status=\"sent\"}[1m])",
+            "legendFormat": "PA Commands Sent",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(mqtt_messages_total{status=\"error\"}[1m])",
+            "legendFormat": "Errors",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Messages/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "PA Command Latency",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(pa_command_to_playback_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95 PA Latency",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency"},
+          {"format": "short"}
+        ]
+      }
+    ]
+  }
+}

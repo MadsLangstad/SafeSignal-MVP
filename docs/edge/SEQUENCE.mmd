@@ -1,0 +1,69 @@
+sequenceDiagram
+    autonumber
+    participant ESP as ESP32/App
+    participant EMQX as EMQX Broker
+    participant Policy as Policy Service
+    participant PA as PA Service
+    participant Prom as Prometheus
+
+    Note over ESP,PA: Alert Trigger Flow (Target: P95 ≤ 2s)
+
+    %% Trigger Phase (≤100ms)
+    rect rgb(200, 255, 200)
+        Note right of ESP: t_trigger
+        ESP->>EMQX: MQTT PUBLISH (QoS1, mTLS)<br/>tenant/a/building/b/room/r/alert
+        Note right of EMQX: Validate mTLS cert<br/>Check ACL rules
+        EMQX-->>ESP: PUBACK
+        EMQX->>Policy: Forward message
+        Note right of Policy: t_received (≤100ms from trigger)
+    end
+
+    %% Validation & Dedup Phase (≤200ms)
+    rect rgb(255, 255, 200)
+        Note right of Policy: Anti-Replay Check<br/>timestamp ±30s window
+        Policy->>Policy: Validate nonce (future)
+        Note right of Policy: Deduplication<br/>300-800ms window
+        Policy->>Policy: Check dedup cache<br/>key: tenant:building:room:mode
+        Note right of Policy: t_validated (≤200ms)
+    end
+
+    %% Policy Evaluation Phase (≤300ms)
+    rect rgb(200, 220, 255)
+        Note right of Policy: Load building topology<br/>(SQLite cache in prod)
+        Policy->>Policy: Get all rooms in building
+        Note right of Policy: CRITICAL INVARIANT:<br/>Exclude source room 'r'
+        Policy->>Policy: targetRooms = allRooms - sourceRoom
+        Note right of Policy: Log exclusion for audit
+        Note right of Policy: t_policy_eval (≤300ms)
+    end
+
+    %% PA Fan-Out Phase (≤400ms)
+    rect rgb(255, 220, 200)
+        loop For each target room
+            Policy->>EMQX: MQTT PUBLISH (QoS0)<br/>pa/{roomId}/play
+            Note right of Policy: QoS0 for speed<br/>No retain flag
+            EMQX->>PA: Forward PA command
+        end
+        Note right of Policy: t_fanout_complete (≤400ms)
+    end
+
+    %% PA Playback Phase (≤1600ms)
+    rect rgb(220, 200, 255)
+        PA->>PA: Get audio clip<br/>(TTS or pre-recorded)
+        Note right of PA: TTS stub: 50-200ms
+        PA->>PA: Play audio to room speakers
+        Note right of PA: Simulated playback: 2-4s
+        PA->>EMQX: MQTT PUBLISH<br/>pa/{roomId}/status
+        EMQX->>Policy: Status acknowledgement
+        Policy->>Policy: Update success metrics
+        Note right of PA: t_playback_complete (≤2000ms total)
+    end
+
+    %% Metrics & Observability
+    rect rgb(240, 240, 240)
+        Policy->>Prom: Expose /metrics<br/>alert_trigger_latency_seconds<br/>dedup_cache_size
+        PA->>Prom: Expose /metrics<br/>pa_playback_success_ratio
+        Note over Policy,Prom: Scraped every 5s
+    end
+
+    Note over ESP,PA: Total Latency: t_playback_complete - t_trigger<br/>SLO: P95 ≤ 2000ms

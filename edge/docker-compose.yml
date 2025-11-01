@@ -1,0 +1,174 @@
+services:
+  # EMQX MQTT Broker with mTLS
+  emqx:
+    image: emqx/emqx:5.4.0
+    container_name: safesignal-emqx
+    ports:
+      - "1883:1883"      # MQTT (for testing without TLS)
+      - "8883:8883"      # MQTT over TLS
+      - "18083:18083"    # Dashboard
+    volumes:
+      - ./certs:/opt/emqx/etc/certs:ro
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+    environment:
+      # Node configuration
+      - EMQX_NODE__NAME=emqx@127.0.0.1
+      - EMQX_NODE__COOKIE=safesignal_dev_cookie_change_in_prod
+
+      # Dashboard credentials
+      - EMQX_DASHBOARD__DEFAULT_USERNAME=admin
+      - EMQX_DASHBOARD__DEFAULT_PASSWORD=public
+
+      # MQTT TLS Listener (port 8883)
+      - EMQX_LISTENERS__SSL__DEFAULT__BIND=8883
+      - EMQX_LISTENERS__SSL__DEFAULT__MAX_CONNECTIONS=1024000
+      - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__CACERTFILE=/opt/emqx/etc/certs/ca/ca.crt
+      - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__CERTFILE=/opt/emqx/etc/certs/emqx/server.crt
+      - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__KEYFILE=/opt/emqx/etc/certs/emqx/server.key
+      - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__VERIFY=verify_peer
+      - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__FAIL_IF_NO_PEER_CERT=true
+
+      # MQTT TCP Listener (port 1883) - for easier testing
+      - EMQX_LISTENERS__TCP__DEFAULT__BIND=1883
+      - EMQX_LISTENERS__TCP__DEFAULT__MAX_CONNECTIONS=1024000
+
+      # Disable WebSocket listeners (not needed for MVP)
+      - EMQX_LISTENERS__WS__DEFAULT__ENABLE=false
+      - EMQX_LISTENERS__WSS__DEFAULT__ENABLE=false
+
+      # Disable retained messages (safety requirement)
+      - EMQX_MQTT__RETAIN_AVAILABLE=false
+      - EMQX_MQTT__MAX_PACKET_SIZE=256KB
+
+      # Allow anonymous (auth via mTLS cert validation)
+      - EMQX_ALLOW_ANONYMOUS=true
+
+      # Logging
+      - EMQX_LOG__CONSOLE__LEVEL=info
+    healthcheck:
+      test: ["CMD", "emqx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - safesignal-edge
+    restart: unless-stopped
+
+  # Policy Service - Alert FSM and deduplication
+  policy-service:
+    build:
+      context: ./policy-service
+      dockerfile: Dockerfile
+    container_name: safesignal-policy-service
+    ports:
+      - "5100:5000"  # Metrics endpoint (host:container)
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - Mqtt__BrokerHost=emqx
+      - Mqtt__BrokerPort=8883
+      - Mqtt__ClientId=policy-service
+      - Mqtt__ClientCertPath=/certs/policy-service/client.crt
+      - Mqtt__ClientKeyPath=/certs/policy-service/client.key
+      - Mqtt__CaCertPath=/certs/ca/ca.crt
+    depends_on:
+      emqx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - safesignal-edge
+    restart: unless-stopped
+
+  # PA Service - Public Address audio playback
+  pa-service:
+    build:
+      context: ./pa-service
+      dockerfile: Dockerfile
+    container_name: safesignal-pa-service
+    ports:
+      - "5101:5001"  # Metrics endpoint (host:container)
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5001
+      - Mqtt__BrokerHost=emqx
+      - Mqtt__BrokerPort=8883
+      - Mqtt__ClientId=pa-service
+      - Mqtt__ClientCertPath=/certs/pa-service/client.crt
+      - Mqtt__ClientKeyPath=/certs/pa-service/client.key
+      - Mqtt__CaCertPath=/certs/ca/ca.crt
+    depends_on:
+      emqx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - safesignal-edge
+    restart: unless-stopped
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: safesignal-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - safesignal-edge
+    restart: unless-stopped
+
+  # Grafana - Metrics visualization
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: safesignal-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=
+    depends_on:
+      - prometheus
+    networks:
+      - safesignal-edge
+    restart: unless-stopped
+
+networks:
+  safesignal-edge:
+    driver: bridge
+    name: safesignal-edge
+
+volumes:
+  emqx-data:
+    name: safesignal-emqx-data
+  emqx-log:
+    name: safesignal-emqx-log
+  prometheus-data:
+    name: safesignal-prometheus-data
+  grafana-data:
+    name: safesignal-grafana-data

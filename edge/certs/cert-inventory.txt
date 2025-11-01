@@ -1,0 +1,31 @@
+SafeSignal Edge Development Certificates
+Generated: 2025-10-31 23:31:34 UTC
+
+CA Certificate:
+  Location: ca/ca.crt
+  Subject: subject=C=NO, ST=Oslo, L=Oslo, O=SafeSignal-Dev, OU=Edge-CA, CN=SafeSignal Dev CA
+  Valid until: Oct 29 23:31:34 2035 GMT
+
+EMQX Broker (Server):
+  Cert: emqx/server.crt
+  Key: emqx/server.key
+  Combined: emqx/server-combined.pem
+  Subject: subject=C=NO, ST=Oslo, L=Oslo, O=SafeSignal-Dev, OU=Edge, CN=emqx
+
+Policy Service (Client):
+  Cert: policy-service/client.crt
+  Key: policy-service/client.key
+  Subject: subject=C=NO, ST=Oslo, L=Oslo, O=SafeSignal-Dev, OU=Edge, CN=policy-service
+
+PA Service (Client):
+  Cert: pa-service/client.crt
+  Key: pa-service/client.key
+  Subject: subject=C=NO, ST=Oslo, L=Oslo, O=SafeSignal-Dev, OU=Edge, CN=pa-service
+
+Test Devices:
+  ESP32: devices/esp32-test.crt / devices/esp32-test.key
+  App: devices/app-test.crt / devices/app-test.key
+
+⚠️  WARNING: These are DEVELOPMENT certificates only.
+    DO NOT use in production environments.
+    All certificates expire in 1 year, CA in 10 years.

@@ -1,0 +1,58 @@
+# SafeSignal Edge - Prometheus Configuration
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'safesignal-edge'
+    environment: 'development'
+
+# Alerting configuration (optional for MVP)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Rule files (optional for MVP)
+rule_files: []
+
+# Scrape configurations
+scrape_configs:
+  # Policy Service metrics (internal port 5000, host port 5100)
+  - job_name: 'policy-service'
+    static_configs:
+      - targets: ['policy-service:5000']
+        labels:
+          service: 'policy-service'
+          component: 'edge'
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  # PA Service metrics (internal port 5001, host port 5101)
+  - job_name: 'pa-service'
+    static_configs:
+      - targets: ['pa-service:5001']
+        labels:
+          service: 'pa-service'
+          component: 'edge'
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  # EMQX metrics (if enabled)
+  - job_name: 'emqx'
+    static_configs:
+      - targets: ['emqx:18083']
+        labels:
+          service: 'emqx'
+          component: 'broker'
+    metrics_path: '/api/v5/prometheus/stats'
+    scrape_interval: 15s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          component: 'monitoring'
