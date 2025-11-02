@@ -4,15 +4,34 @@
 ```bash
 cd scripts && ./seed-certs.sh          # Generate certs (first time only)
 cd ../edge && docker-compose up -d     # Start stack
+cd ../scripts && ./show-services.sh    # View all service URLs
 cd ../scripts && ./test-mvp.sh         # Run tests
-./measure-latency.sh 50                # Measure P95 latency
+open http://localhost:5200             # Open status dashboard
 ```
+
+## Status Dashboard 📊
+**New!** Web UI at http://localhost:5200 showing:
+- Real-time system status
+- Alert history (last 20)
+- Database statistics
+- Topology info (buildings, rooms, devices)
+- Auto-refreshes every 30 seconds
 
 ## Common Commands
 ```bash
 # Start/stop
 docker-compose up -d
 docker-compose down
+
+# View all service URLs and status
+./show-services.sh
+
+# View dashboards
+open http://localhost:5200     # Status Dashboard
+open http://localhost:3000     # Grafana (admin/admin)
+open http://localhost:9090     # Prometheus
+open http://localhost:18083    # EMQX Dashboard (admin/public)
+open http://localhost:9001     # MinIO Console
 
 # Logs
 docker-compose logs -f
@@ -22,6 +41,15 @@ docker logs safesignal-pa-service --tail 50
 # Test
 ./send-test-trigger.sh tenant-a building-a room-1
 ./measure-latency.sh 10
+./test-mvp.sh                  # Full test suite
+
+# Check alert history via API
+curl http://localhost:5100/api/alerts | jq
+curl http://localhost:5100/api/stats | jq
+
+# Audio clip management
+curl http://localhost:5101/api/clips | jq
+docker exec safesignal-minio mc ls /data/audio-clips/
 
 # Rebuild after changes
 docker-compose up -d --build policy-service
@@ -33,19 +61,37 @@ curl http://localhost:5101/metrics | grep pa_commands_total
 ```
 
 ## Ports
+- Status Dashboard: 5200 (web UI - **start here!**)
 - EMQX: 8883 (mTLS), 18083 (dashboard: admin/public)
-- Policy: 5100 (metrics + health)
+- Policy: 5100 (metrics + health + API)
 - PA: 5101 (metrics + health)
 - Prometheus: 9090
 - Grafana: 3000 (admin/admin)
 
+## API Endpoints
+**Policy Service (5100):**
+- `GET /api/stats` - Database statistics
+- `GET /api/alerts?limit=20` - Recent alerts
+- `GET /api/alerts/{id}` - Single alert details
+- `GET /metrics` - Prometheus metrics
+- `GET /health` - Health check
+
+## Database
+SQLite database at `/data/safesignal.db` with:
+- **Alerts**: Complete history with status tracking
+- **Topology**: Buildings and rooms (editable via SQL)
+- **Devices**: Registered ESP32/app devices
+- **PA Confirmations**: Playback success tracking
+
 ## Critical Invariants
-⚠️ **Source room MUST be excluded** - Check `AlertStateMachine.cs:136-145`
+⚠️ **Source room MUST be excluded** - Check `AlertStateMachine.cs:268-270`
 - Verify: `docker logs safesignal-policy-service | grep "SOURCE ROOM EXCLUDED"`
 
-## Topology (MVP hardcoded)
+## Topology
+**Database-driven** (with hardcoded fallback):
 - `building-a`: room-1, room-2, room-3, room-4
 - `building-b`: room-101, room-102, room-103
+- Edit via: `docker exec -it safesignal-policy-service sqlite3 /data/safesignal.db`
 
 ## Troubleshooting
 ```bash

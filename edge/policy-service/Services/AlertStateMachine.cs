@@ -1,4 +1,5 @@
 using SafeSignal.Edge.PolicyService.Models;
+using SafeSignal.Edge.PolicyService.Data;
 using Prometheus;
 
 namespace SafeSignal.Edge.PolicyService.Services;
@@ -10,6 +11,8 @@ namespace SafeSignal.Edge.PolicyService.Services;
 public class AlertStateMachine
 {
     private readonly DeduplicationService _dedupService;
+    private readonly TopologyRepository _topologyRepository;
+    private readonly AlertRepository _alertRepository;
     private readonly ILogger<AlertStateMachine> _logger;
 
     // Prometheus metrics
@@ -37,16 +40,22 @@ public class AlertStateMachine
             LabelNames = new[] { "reason" }
         });
 
-    // Mock building topology (MVP - will load from SQLite in production)
-    private static readonly Dictionary<string, List<string>> BuildingRooms = new()
+    // Fallback building topology if database unavailable
+    private static readonly Dictionary<string, List<string>> FallbackBuildingRooms = new()
     {
         { "building-a", new List<string> { "room-1", "room-2", "room-3", "room-4" } },
         { "building-b", new List<string> { "room-101", "room-102", "room-103" } },
     };
 
-    public AlertStateMachine(DeduplicationService dedupService, ILogger<AlertStateMachine> logger)
+    public AlertStateMachine(
+        DeduplicationService dedupService,
+        TopologyRepository topologyRepository,
+        AlertRepository alertRepository,
+        ILogger<AlertStateMachine> logger)
     {
         _dedupService = dedupService;
+        _topologyRepository = topologyRepository;
+        _alertRepository = alertRepository;
         _logger = logger;
     }
 
@@ -58,11 +67,28 @@ public class AlertStateMachine
     {
         using var _ = AlertLatency.NewTimer();
 
+        // Persist alert to database (initial state)
+        var alertRecord = new AlertRecord
+        {
+            AlertId = trigger.AlertId,
+            TenantId = trigger.TenantId,
+            BuildingId = trigger.BuildingId,
+            SourceRoomId = trigger.SourceRoomId,
+            SourceDeviceId = trigger.SourceDeviceId,
+            Mode = trigger.Mode,
+            Origin = trigger.Origin,
+            CausalChainId = trigger.CausalChainId,
+            CreatedAt = receivedAt.UtcDateTime,
+            Status = "PENDING"
+        };
+        await _alertRepository.InsertAlertAsync(alertRecord);
+
         // State 1: Validation
         var validated = await ValidateTrigger(trigger);
         if (!validated)
         {
             AlertsProcessedTotal.WithLabels("rejected").Inc();
+            await _alertRepository.UpdateAlertStatusAsync(trigger.AlertId, "FAILED", errorMessage: "Validation failed");
             return null;
         }
         AlertsProcessedTotal.WithLabels("validated").Inc();
@@ -73,6 +99,7 @@ public class AlertStateMachine
         {
             AlertsRejectedTotal.WithLabels("replay").Inc();
             _logger.LogWarning("Alert rejected: Anti-replay check failed. AlertId={AlertId}", trigger.AlertId);
+            await _alertRepository.UpdateAlertStatusAsync(trigger.AlertId, "FAILED", errorMessage: "Anti-replay check failed");
             return null;
         }
 
@@ -81,18 +108,23 @@ public class AlertStateMachine
         {
             AlertsRejectedTotal.WithLabels("duplicate").Inc();
             _logger.LogInformation("Alert rejected: Duplicate detected. AlertId={AlertId}", trigger.AlertId);
+            await _alertRepository.UpdateAlertStatusAsync(trigger.AlertId, "FAILED", errorMessage: "Duplicate detected");
             return null;
         }
 
         // State 4: Policy Evaluation - Determine target rooms
-        var targetRooms = EvaluatePolicy(trigger);
+        var targetRooms = await EvaluatePolicy(trigger);
         if (targetRooms.Count == 0)
         {
             AlertsRejectedTotal.WithLabels("no_targets").Inc();
             _logger.LogWarning("Alert rejected: No target rooms after policy evaluation. AlertId={AlertId}",
                 trigger.AlertId);
+            await _alertRepository.UpdateAlertStatusAsync(trigger.AlertId, "FAILED", errorMessage: "No target rooms");
             return null;
         }
+
+        // Update alert status to completed with target room count
+        await _alertRepository.UpdateAlertStatusAsync(trigger.AlertId, "COMPLETED", processedAt: DateTime.UtcNow, targetRoomCount: targetRooms.Count);
 
         // State 5: Create Alert Event
         var alertEvent = new AlertEvent
@@ -187,34 +219,72 @@ public class AlertStateMachine
     /// Evaluate policy and determine target rooms
     /// CRITICAL INVARIANT: Never include source room in target list
     /// </summary>
-    private List<string> EvaluatePolicy(AlertTrigger trigger)
+    private async Task<List<string>> EvaluatePolicy(AlertTrigger trigger)
     {
-        // Get all rooms in building
-        if (!BuildingRooms.TryGetValue(trigger.BuildingId, out var allRooms))
-        {
-            _logger.LogWarning(
-                "Building not found in topology: BuildingId={BuildingId}, AlertId={AlertId}",
-                trigger.BuildingId, trigger.AlertId);
+        List<string> allRoomIds;
 
-            // Fail-safe: return empty list
-            return new List<string>();
+        // Try to get rooms from database
+        try
+        {
+            var rooms = await _topologyRepository.GetRoomsByBuildingAsync(trigger.BuildingId);
+            if (rooms.Any())
+            {
+                allRoomIds = rooms.Select(r => r.RoomId).ToList();
+                _logger.LogInformation("Loaded {Count} rooms from database for building {BuildingId}: {RoomIds}",
+                    allRoomIds.Count, trigger.BuildingId, string.Join(", ", allRoomIds));
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "No rooms found in database for building {BuildingId}, using fallback topology",
+                    trigger.BuildingId);
+
+                // Fallback to hardcoded topology
+                if (!FallbackBuildingRooms.TryGetValue(trigger.BuildingId, out allRoomIds!))
+                {
+                    _logger.LogWarning(
+                        "Building not found in fallback topology: BuildingId={BuildingId}, AlertId={AlertId}",
+                        trigger.BuildingId, trigger.AlertId);
+                    return new List<string>();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Database error loading topology, using fallback for building {BuildingId}",
+                trigger.BuildingId);
+
+            // Fallback to hardcoded topology on database error
+            if (!FallbackBuildingRooms.TryGetValue(trigger.BuildingId, out allRoomIds!))
+            {
+                _logger.LogWarning(
+                    "Building not found in fallback topology: BuildingId={BuildingId}, AlertId={AlertId}",
+                    trigger.BuildingId, trigger.AlertId);
+                return new List<string>();
+            }
         }
 
         // CRITICAL SAFETY INVARIANT: Exclude source room (never audible in source room)
-        var targetRooms = allRooms
+        var targetRooms = allRoomIds
             .Where(room => room != trigger.SourceRoomId)
             .ToList();
 
         _logger.LogInformation(
-            "Policy evaluation: Building={Building}, TotalRooms={Total}, SourceRoom={Source}, TargetRooms={Targets}",
-            trigger.BuildingId, allRooms.Count, trigger.SourceRoomId, targetRooms.Count);
+            "Policy evaluation: Building={Building}, TotalRooms={Total}, SourceRoom={Source}, TargetRooms={Targets}, Target List=[{TargetList}]",
+            trigger.BuildingId, allRoomIds.Count, trigger.SourceRoomId, targetRooms.Count, string.Join(", ", targetRooms));
 
         // Log explicit exclusion for audit trail
-        if (targetRooms.Count < allRooms.Count)
+        if (targetRooms.Count < allRoomIds.Count)
         {
             _logger.LogInformation(
                 "SOURCE ROOM EXCLUDED (Safety Invariant): Room={SourceRoom}, AlertId={AlertId}",
                 trigger.SourceRoomId, trigger.AlertId);
+        }
+        else
+        {
+            _logger.LogError(
+                "CRITICAL BUG: Source room NOT excluded! TotalRooms={Total}, TargetRooms={Targets}, SourceRoom={SourceRoom}",
+                allRoomIds.Count, targetRooms.Count, trigger.SourceRoomId);
         }
 
         return targetRooms;

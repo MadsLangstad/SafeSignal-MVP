@@ -229,4 +229,23 @@ log_info "Detailed results saved to: ${RESULTS_FILE}"
 log_info "Sorted results saved to: ${RESULTS_FILE}.sorted"
 echo ""
 
+# Display helpful dashboards
+echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║   View Detailed Metrics                                    ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "${GREEN}📊 Dashboards${NC}"
+echo "  Grafana Dashboard:   http://localhost:3000 (admin/admin)"
+echo "  Prometheus Metrics:  http://localhost:9090"
+echo "  Status Dashboard:    http://localhost:5200"
+echo ""
+echo -e "${GREEN}📈 Direct Metrics${NC}"
+echo "  Policy metrics:      curl http://localhost:5100/metrics | grep alert"
+echo "  PA metrics:          curl http://localhost:5101/metrics | grep pa_"
+echo ""
+echo -e "${GREEN}📋 Service Logs${NC}"
+echo "  Policy logs:         docker logs safesignal-policy-service --tail 100"
+echo "  PA logs:             docker logs safesignal-pa-service --tail 100"
+echo ""
+
 exit ${EXIT_CODE}

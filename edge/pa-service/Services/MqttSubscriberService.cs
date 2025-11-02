@@ -15,7 +15,7 @@ namespace SafeSignal.Edge.PaService.Services;
 /// </summary>
 public class MqttSubscriberService : BackgroundService
 {
-    private readonly TtsStubService _ttsService;
+    private readonly AudioPlaybackService _audioPlayback;
     private readonly ILogger<MqttSubscriberService> _logger;
     private readonly IConfiguration _configuration;
     private IManagedMqttClient? _mqttClient;
@@ -45,11 +45,11 @@ public class MqttSubscriberService : BackgroundService
     private int _playbackSuccesses = 0;
 
     public MqttSubscriberService(
-        TtsStubService ttsService,
+        AudioPlaybackService audioPlayback,
         ILogger<MqttSubscriberService> logger,
         IConfiguration configuration)
     {
-        _ttsService = ttsService;
+        _audioPlayback = audioPlayback;
         _logger = logger;
         _configuration = configuration;
     }
@@ -205,21 +205,19 @@ public class MqttSubscriberService : BackgroundService
                 "PA command received: AlertId={AlertId}, Room={Room}, ClipRef={ClipRef}",
                 command.AlertId, command.RoomId, command.ClipRef);
 
-            // Get or generate audio
-            byte[] audioData;
-            if (command.ClipRef == "EMERGENCY_ALERT")
+            // Get audio clip from MinIO storage
+            var audioData = await _audioPlayback.GetAudioClipAsync(command.ClipRef);
+
+            if (audioData == null || audioData.Length == 0)
             {
-                // Use pre-recorded clip
-                audioData = await _ttsService.GetAudioClipAsync(command.ClipRef);
-            }
-            else
-            {
-                // Generate TTS
-                audioData = await _ttsService.GenerateTtsAsync("Emergency alert. Please follow evacuation procedures.");
+                _logger.LogError("Failed to load audio clip: ClipRef={ClipRef}, AlertId={AlertId}",
+                    command.ClipRef, command.AlertId);
+                PaCommandsTotal.WithLabels("audio_load_failed").Inc();
+                return;
             }
 
             // Play audio on PA system
-            var result = await _ttsService.PlayAudioAsync(command.RoomId, audioData);
+            var result = await _audioPlayback.PlayAudioAsync(command.RoomId, audioData);
 
             // Send acknowledgement
             await SendPaStatus(command, result);

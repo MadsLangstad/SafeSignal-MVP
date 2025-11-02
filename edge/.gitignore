@@ -1,0 +1,39 @@
+# Environment variables
+.env
+
+# Build artifacts
+bin/
+obj/
+publish/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Certificates (if self-signed for development)
+certs/*.key
+certs/*.crt
+certs/*.pem
+
+# Data directories
+data/
+minio-data/
+postgres-data/
+grafana-data/
+prometheus-data/
+
+# Temporary files
+*.tmp
+tmp/
