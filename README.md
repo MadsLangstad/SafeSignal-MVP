@@ -109,9 +109,37 @@ mosquitto_sub -h localhost -p 8883 --cafile edge/certs/ca/ca.crt \
   --cert edge/certs/devices/app-test.crt --key edge/certs/devices/app-test.key -t '#' -v
 ```
 
+## Documentation
+
+### 📚 Implementation Planning
+- **[Implementation Plan](docs/IMPLEMENTATION-PLAN.md)** - Complete 8-phase roadmap from MVP to production (65-70% remaining)
+- **[Implementation Summary](docs/IMPLEMENTATION-SUMMARY.md)** - Quick reference guide with timelines and resource requirements
+- **[Complete System Architecture](docs/ARCHITECTURE-COMPLETE-SYSTEM.md)** - Full architecture diagrams and data flows
+
+### 🏗️ MVP Status
+**Current Completion: 30-35%**
+- ✅ Edge infrastructure (EMQX, Policy Service, PA Service, SQLite)
+- ✅ Basic observability (Prometheus + Grafana)
+- ✅ Status dashboard and metrics
+- ❌ ESP32 firmware and hardware (Phase 1 - 6 weeks)
+- ❌ Cloud backend (.NET 9 APIs, PostgreSQL, Kafka) (Phase 2 - 8 weeks)
+- ❌ Mobile application (React Native) (Phase 4 - 10 weeks)
+- ❌ Production security (SPIFFE/SPIRE, Vault) (Phase 5 - 8 weeks)
+- ❌ Communications (SMS, voice, push) (Phase 6 - 4 weeks)
+- ❌ Certifications (ISO/CE/FCC) (Phase 8 - 8 weeks)
+
+**Estimated Timeline to Production**: 8-10 months with 11-14 person team
+
+### 📖 Edge Documentation
+- **[Runbook](docs/edge/RUNBOOK-Local-E2E.md)** - Operational procedures
+- **[Test Plan](docs/edge/TESTPLAN-Latency.md)** - Latency testing
+- **[Decision Record](docs/edge/DECISION-RECORD.md)** - Architectural decisions
+- **[Changelog](docs/edge/CHANGELOG-MVP.md)** - MVP development history
+
 ## Structure
 ```
 edge/          # Services + docker-compose.yml
 scripts/       # seed-certs.sh, test-mvp.sh, send-test-trigger.sh, measure-latency.sh
+docs/          # Implementation planning and system architecture
 docs/edge/     # RUNBOOK, TESTPLAN, SEQUENCE, DECISION-RECORD, CHANGELOG
 ```
