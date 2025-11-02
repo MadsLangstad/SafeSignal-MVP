@@ -1,0 +1,9 @@
+# Name,   Type, SubType,  Offset,   Size,     Flags
+# ESP32-S3 partition table for OTA updates (8MB flash)
+nvs,      data, nvs,      0x9000,   0x6000,
+phy_init, data, phy,      0xf000,   0x1000,
+factory,  app,  factory,  0x10000,  0x1F0000,
+ota_0,    app,  ota_0,    0x200000, 0x1F0000,
+ota_1,    app,  ota_1,    0x3F0000, 0x1F0000,
+otadata,  data, ota,      0x5E0000, 0x2000,
+spiffs,   data, spiffs,   0x5E2000, 0x1E000,
