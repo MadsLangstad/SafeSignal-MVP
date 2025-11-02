@@ -37,6 +37,9 @@
 #include "wifi.h"
 #include "mqtt.h"
 #include "button.h"
+#include "alert_queue.h"
+#include "watchdog.h"
+#include "time_sync.h"
 
 static const char *TAG = "MAIN";
 
@@ -82,15 +85,29 @@ void app_main(void)
     /* Initialize GPIO (LED, button) */
     setup_gpio();
 
+    /* Initialize alert queue (NVS-based persistence) */
+    ESP_ERROR_CHECK(alert_queue_init());
+
+    /* Initialize watchdog */
+    ESP_ERROR_CHECK(watchdog_init());
+
     /* Initialize WiFi */
     wifi_init();
+
+    /* Initialize time synchronization (SNTP) */
+    ESP_ERROR_CHECK(time_sync_init());
 
     /* Initialize MQTT */
     mqtt_init();
 
     /* Create tasks */
-    xTaskCreate(button_task, "button_task", 4096, NULL, 5, NULL);
-    xTaskCreate(status_task, "status_task", 4096, NULL, 3, NULL);
+    TaskHandle_t button_task_handle, status_task_handle;
+    xTaskCreate(button_task, "button_task", 4096, NULL, 5, &button_task_handle);
+    xTaskCreate(status_task, "status_task", 4096, NULL, 3, &status_task_handle);
+
+    /* Register tasks with watchdog */
+    ESP_ERROR_CHECK(watchdog_add_task(button_task_handle, "button_task"));
+    ESP_ERROR_CHECK(watchdog_add_task(status_task_handle, "status_task"));
 
     ESP_LOGI(TAG, "[READY] System initialized");
     ESP_LOGI(TAG, "[READY] Press button to trigger alert");
@@ -143,13 +160,16 @@ static void button_task(void *pvParameters)
     ESP_LOGI(TAG, "[BUTTON] Task started");
 
     while (1) {
+        /* Feed watchdog */
+        watchdog_feed();
+
         /* Wait for button press event */
         EventBits_t bits = xEventGroupWaitBits(
             system_events,
             BUTTON_PRESSED_BIT,
             pdTRUE,   /* Clear bit on exit */
             pdFALSE,  /* Wait for any bit */
-            portMAX_DELAY
+            pdMS_TO_TICKS(5000)  /* 5s timeout to feed watchdog periodically */
         );
 
         if (bits & BUTTON_PRESSED_BIT) {
@@ -196,6 +216,9 @@ static void status_task(void *pvParameters)
     uint32_t heartbeat_counter = 0;
 
     while (1) {
+        /* Feed watchdog */
+        watchdog_feed();
+
         /* Status report every 60 seconds */
         if ((status_counter++ * 1000) >= STATUS_REPORT_INTERVAL_MS) {
             mqtt_publish_status();
@@ -206,6 +229,15 @@ static void status_task(void *pvParameters)
         if ((heartbeat_counter++ * 1000) >= HEARTBEAT_INTERVAL_MS) {
             mqtt_publish_heartbeat();
             heartbeat_counter = 0;
+        }
+
+        /* Process queued alerts periodically */
+        if ((status_counter % 10) == 0) {  /* Every 10 seconds */
+            int pending = alert_queue_get_count();
+            if (pending > 0) {
+                ESP_LOGI(TAG, "[STATUS] Processing %d queued alerts", pending);
+                alert_queue_process();
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(1000));

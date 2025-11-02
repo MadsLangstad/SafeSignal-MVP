@@ -1,0 +1,12 @@
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/bin/Debug/net9.0/SafeSignal.Cloud.Core.deps.json
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/bin/Debug/net9.0/SafeSignal.Cloud.Core.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/bin/Debug/net9.0/SafeSignal.Cloud.Core.pdb
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/SafeSignal.Cloud.Core.GeneratedMSBuildEditorConfig.editorconfig
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/SafeSignal.Cloud.Core.AssemblyInfoInputs.cache
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/SafeSignal.Cloud.Core.AssemblyInfo.cs
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/SafeSignal.Cloud.Core.csproj.CoreCompileInputs.cache
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/SafeSignal.Cloud.Core.sourcelink.json
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/SafeSignal.Cloud.Core.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/refint/SafeSignal.Cloud.Core.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/SafeSignal.Cloud.Core.pdb
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Core/obj/Debug/net9.0/ref/SafeSignal.Cloud.Core.dll

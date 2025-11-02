@@ -1,9 +1,11 @@
 #include "mqtt.h"
 #include "config.h"
 #include "wifi.h"
+#include "alert_queue.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
@@ -39,6 +41,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
             ESP_LOGI(TAG, "[MQTT] Connected to broker");
             connected = true;
             xEventGroupSetBits(system_events, MQTT_CONNECTED_BIT);
+
+            /* Process any pending alerts from queue */
+            int delivered = alert_queue_process();
+            if (delivered > 0) {
+                ESP_LOGI(TAG, "[MQTT] Delivered %d queued alerts on reconnect", delivered);
+            }
             break;
 
         case MQTT_EVENT_DISCONNECTED:
@@ -108,12 +116,56 @@ void mqtt_init(void)
 
 bool mqtt_publish_alert(void)
 {
-    if (!connected || client == NULL) {
-        ESP_LOGE(TAG, "[MQTT] Not connected, cannot publish alert");
+    /* Get UTC timestamp (will be 0 if not synchronized yet) */
+    time_t now;
+    time(&now);
+    uint32_t timestamp_utc = (uint32_t)now;
+    uint32_t alert_id = xTaskGetTickCount();  /* Use tick count for unique ID */
+
+    /* Create queued alert structure */
+    queued_alert_t queued_alert = {
+        .alert_id = alert_id,
+        .timestamp = timestamp_utc,
+        .retry_count = 0,
+        .created_at = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000,
+        .mode = DEFAULT_ALERT_MODE,
+    };
+
+    strncpy(queued_alert.device_id, DEVICE_ID, sizeof(queued_alert.device_id) - 1);
+    strncpy(queued_alert.tenant_id, TENANT_ID, sizeof(queued_alert.tenant_id) - 1);
+    strncpy(queued_alert.building_id, BUILDING_ID, sizeof(queued_alert.building_id) - 1);
+    strncpy(queued_alert.room_id, ROOM_ID, sizeof(queued_alert.room_id) - 1);
+    strncpy(queued_alert.version, SAFESIGNAL_VERSION, sizeof(queued_alert.version) - 1);
+
+    /* Enqueue alert for persistence */
+    esp_err_t ret = alert_queue_enqueue(&queued_alert);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "[MQTT] Failed to enqueue alert: %s", esp_err_to_name(ret));
         return false;
     }
 
-    uint32_t timestamp = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    /* Attempt immediate publish if connected */
+    if (connected && client != NULL) {
+        if (mqtt_publish_alert_from_queue(&queued_alert)) {
+            ESP_LOGI(TAG, "[MQTT] Alert published immediately");
+            /* Note: alert_queue will remove from NVS on next process() call */
+            alert_queue_process();  /* Clean up successful alert */
+            return true;
+        } else {
+            ESP_LOGW(TAG, "[MQTT] Immediate publish failed, alert queued for retry");
+            return false;
+        }
+    } else {
+        ESP_LOGW(TAG, "[MQTT] Not connected, alert queued for delivery");
+        return false;
+    }
+}
+
+bool mqtt_publish_alert_from_queue(const queued_alert_t *alert)
+{
+    if (!connected || client == NULL || alert == NULL) {
+        return false;
+    }
 
     /* Build JSON payload */
     char payload[PAYLOAD_BUFFER_SIZE];
@@ -127,16 +179,18 @@ bool mqtt_publish_alert(void)
         "\"mode\":%d,"
         "\"origin\":\"ESP32\","
         "\"timestamp\":%lu,"
+        "\"retryCount\":%lu,"
         "\"version\":\"%s\""
         "}",
-        DEVICE_ID, timestamp,
-        DEVICE_ID,
-        TENANT_ID,
-        BUILDING_ID,
-        ROOM_ID,
-        DEFAULT_ALERT_MODE,
-        timestamp,
-        SAFESIGNAL_VERSION
+        alert->device_id, alert->alert_id,
+        alert->device_id,
+        alert->tenant_id,
+        alert->building_id,
+        alert->room_id,
+        alert->mode,
+        (unsigned long)alert->timestamp,
+        alert->retry_count,
+        alert->version
     );
 
     if (len < 0 || len >= sizeof(payload)) {
@@ -147,16 +201,16 @@ bool mqtt_publish_alert(void)
     /* Build topic: safesignal/{tenant}/{building}/alerts/trigger */
     char topic[TOPIC_BUFFER_SIZE];
     snprintf(topic, sizeof(topic), "safesignal/%s/%s/alerts/trigger",
-             TENANT_ID, BUILDING_ID);
+             alert->tenant_id, alert->building_id);
 
     /* Publish with QoS 1 */
     int msg_id = esp_mqtt_client_publish(client, topic, payload, len, MQTT_QOS, 0);
 
     if (msg_id >= 0) {
-        ESP_LOGI(TAG, "[MQTT] Alert published (msg_id=%d)", msg_id);
+        ESP_LOGI(TAG, "[MQTT] Alert %lu published (msg_id=%d)", alert->alert_id, msg_id);
         return true;
     } else {
-        ESP_LOGE(TAG, "[MQTT] Failed to publish alert");
+        ESP_LOGE(TAG, "[MQTT] Failed to publish alert %lu", alert->alert_id);
         return false;
     }
 }

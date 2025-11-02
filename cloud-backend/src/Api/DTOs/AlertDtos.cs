@@ -1,0 +1,35 @@
+using SafeSignal.Cloud.Core.Entities;
+
+namespace SafeSignal.Cloud.Api.DTOs;
+
+public record CreateAlertRequest(
+    string AlertId,
+    Guid OrganizationId,
+    Guid? DeviceId,
+    Guid? RoomId,
+    AlertSeverity Severity,
+    string AlertType,
+    AlertSource Source,
+    string? Metadata
+);
+
+public record UpdateAlertRequest(
+    AlertStatus Status,
+    DateTime? ResolvedAt
+);
+
+public record AlertResponse(
+    Guid Id,
+    string AlertId,
+    Guid OrganizationId,
+    Guid? DeviceId,
+    Guid? RoomId,
+    DateTime TriggeredAt,
+    DateTime? ResolvedAt,
+    AlertSeverity Severity,
+    string AlertType,
+    AlertStatus Status,
+    AlertSource Source,
+    string? Metadata,
+    DateTime CreatedAt
+);
