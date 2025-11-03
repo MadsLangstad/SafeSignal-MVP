@@ -9,42 +9,30 @@ namespace SafeSignal.Cloud.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
-public class BuildingsController : ControllerBase
+public class BuildingsController : BaseAuthenticatedController
 {
     private readonly IBuildingRepository _buildingRepository;
+    private readonly ISiteRepository _siteRepository;
     private readonly ILogger<BuildingsController> _logger;
 
-    public BuildingsController(IBuildingRepository buildingRepository, ILogger<BuildingsController> logger)
+    public BuildingsController(
+        IBuildingRepository buildingRepository,
+        ISiteRepository siteRepository,
+        ILogger<BuildingsController> logger)
     {
         _buildingRepository = buildingRepository;
+        _siteRepository = siteRepository;
         _logger = logger;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<BuildingResponse>>> ListBuildings(
-        [FromQuery] Guid? organizationId = null)
+    public async Task<ActionResult<IEnumerable<BuildingResponse>>> ListBuildings()
     {
-        // Get user ID from JWT claims
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-        {
-            return Unauthorized(new { error = "Invalid token claims" });
-        }
+        // Get authenticated user's organizationId from JWT
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
 
-        // For MVP, if organizationId is provided, use it
-        // Otherwise, return all buildings (in production, filter by user's organization)
-        IEnumerable<Building> buildings;
-        if (organizationId.HasValue && organizationId.Value != Guid.Empty)
-        {
-            buildings = await _buildingRepository.GetByOrganizationIdAsync(organizationId.Value);
-        }
-        else
-        {
-            // For MVP, return all buildings
-            // TODO: In production, look up user's organization and filter
-            buildings = await _buildingRepository.GetAllAsync();
-        }
+        // Only return buildings for the authenticated user's organization
+        var buildings = await _buildingRepository.GetByOrganizationIdAsync(authenticatedOrgId);
 
         return Ok(buildings.Select(MapToResponse));
     }
@@ -58,12 +46,43 @@ public class BuildingsController : ControllerBase
             return NotFound();
         }
 
+        // Validate that the building belongs to the authenticated user's organization
+        var buildingOrgId = building.Site?.OrganizationId ?? Guid.Empty;
+        if (buildingOrgId == Guid.Empty)
+        {
+            return BadRequest(new { error = "Building has no associated organization" });
+        }
+
+        try
+        {
+            ValidateOrganizationAccess(buildingOrgId);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound(); // Return 404 instead of 403 to avoid leaking existence
+        }
+
         return Ok(MapToResponse(building));
     }
 
     [HttpPost]
     public async Task<ActionResult<BuildingResponse>> CreateBuilding([FromBody] CreateBuildingRequest request)
     {
+        // Get authenticated user's organizationId
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
+
+        // Validate that the site exists and belongs to the authenticated user's organization
+        var site = await _siteRepository.GetByIdAsync(request.SiteId);
+        if (site == null)
+        {
+            return NotFound(new { error = "Site not found" });
+        }
+
+        if (site.OrganizationId != authenticatedOrgId)
+        {
+            return NotFound(new { error = "Site not found" }); // Return 404 to avoid leaking existence
+        }
+
         var building = new Building
         {
             Id = Guid.NewGuid(),
@@ -78,8 +97,8 @@ public class BuildingsController : ControllerBase
         await _buildingRepository.AddAsync(building);
         await _buildingRepository.SaveChangesAsync();
 
-        _logger.LogInformation("Created building {BuildingId} for site {SiteId}",
-            building.Id, building.SiteId);
+        _logger.LogInformation("Created building {BuildingId} for site {SiteId} in organization {OrganizationId}",
+            building.Id, building.SiteId, authenticatedOrgId);
 
         return CreatedAtAction(nameof(GetBuilding), new { id = building.Id }, MapToResponse(building));
     }

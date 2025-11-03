@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SafeSignal.Cloud.Api.DTOs;
 using SafeSignal.Cloud.Core.Entities;
 using SafeSignal.Cloud.Core.Interfaces;
+using SafeSignal.Cloud.Infrastructure.Data;
 using System.Security.Claims;
 
 namespace SafeSignal.Cloud.Api.Controllers;
@@ -13,11 +15,13 @@ namespace SafeSignal.Cloud.Api.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
+    private readonly SafeSignalDbContext _context;
     private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserRepository userRepository, ILogger<UsersController> logger)
+    public UsersController(IUserRepository userRepository, SafeSignalDbContext context, ILogger<UsersController> logger)
     {
         _userRepository = userRepository;
+        _context = context;
         _logger = logger;
     }
 
@@ -96,10 +100,31 @@ public class UsersController : ControllerBase
             return NotFound(new { error = "User not found" });
         }
 
-        // TODO: Store push token in database (create PushToken entity)
-        // For now, just log it
-        _logger.LogInformation("Push token registered for user {UserId}: {Token} (Platform: {Platform})",
-            userId, request.Token, request.Platform);
+        // Remove any existing push tokens for this user and platform (users can only have one active token per platform)
+        var existingTokens = await _context.Set<PushToken>()
+            .Where(pt => pt.UserId == userId.Value && pt.Platform == request.Platform && pt.RevokedAt == null)
+            .ToListAsync();
+
+        foreach (var existingToken in existingTokens)
+        {
+            existingToken.RevokedAt = DateTime.UtcNow;
+        }
+
+        // Store new push token
+        var pushToken = new PushToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId.Value,
+            Token = request.Token,
+            Platform = request.Platform,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Set<PushToken>().Add(pushToken);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Push token registered for user {UserId}: Platform={Platform}",
+            userId, request.Platform);
 
         return Ok(new { message = "Push token registered successfully" });
     }

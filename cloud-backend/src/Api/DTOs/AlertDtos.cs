@@ -4,7 +4,6 @@ namespace SafeSignal.Cloud.Api.DTOs;
 
 public record CreateAlertRequest(
     string AlertId,
-    Guid OrganizationId,
     Guid? DeviceId,
     Guid? RoomId,
     AlertSeverity Severity,

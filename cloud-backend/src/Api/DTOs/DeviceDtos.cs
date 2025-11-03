@@ -4,7 +4,6 @@ namespace SafeSignal.Cloud.Api.DTOs;
 
 public record RegisterDeviceRequest(
     string DeviceId,
-    Guid OrganizationId,
     string? SerialNumber,
     string? MacAddress,
     string? HardwareVersion,

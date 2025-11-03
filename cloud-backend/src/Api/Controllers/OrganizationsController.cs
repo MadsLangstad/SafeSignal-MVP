@@ -8,8 +8,7 @@ namespace SafeSignal.Cloud.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
-public class OrganizationsController : ControllerBase
+public class OrganizationsController : BaseAuthenticatedController
 {
     private readonly IOrganizationRepository _organizationRepository;
     private readonly ILogger<OrganizationsController> _logger;
@@ -25,9 +24,20 @@ public class OrganizationsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(OrganizationResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<OrganizationResponse>> CreateOrganization(
         [FromBody] CreateOrganizationRequest request)
     {
+        // Only SuperAdmins can create new organizations
+        try
+        {
+            RequireSuperAdmin();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+
         // Check if slug already exists
         var existing = await _organizationRepository.GetBySlugAsync(request.Slug);
         if (existing != null)
@@ -73,26 +83,28 @@ public class OrganizationsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        if (page < 1) page = 1;
-        if (pageSize < 1 || pageSize > 100) pageSize = 20;
+        // Only return the authenticated user's organization - no listing other orgs
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
+        var organization = await _organizationRepository.GetByIdAsync(authenticatedOrgId);
 
-        var skip = (page - 1) * pageSize;
-        var organizations = await _organizationRepository.GetPagedAsync(skip, pageSize);
-        var totalCount = await _organizationRepository.GetCountAsync();
+        if (organization == null)
+        {
+            return NotFound(new { error = "Organization not found" });
+        }
 
-        var summaries = organizations.Select(o => new OrganizationSummary(
-            o.Id,
-            o.Name,
-            o.Slug,
-            o.Status,
-            o.CreatedAt
-        ));
+        var summary = new OrganizationSummary(
+            organization.Id,
+            organization.Name,
+            organization.Slug,
+            organization.Status,
+            organization.CreatedAt
+        );
 
         var response = new OrganizationListResponse(
-            summaries,
-            totalCount,
-            page,
-            pageSize
+            new[] { summary },
+            1, // Only one organization
+            1, // Always page 1
+            1  // Always page size 1
         );
 
         return Ok(response);
@@ -103,6 +115,16 @@ public class OrganizationsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrganizationResponse>> GetOrganization(Guid id)
     {
+        // Validate that the requested organization matches the authenticated user's organization
+        try
+        {
+            ValidateOrganizationAccess(id);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound(new { error = "Organization not found" });
+        }
+
         var organization = await _organizationRepository.GetByIdAsync(id);
         if (organization == null)
         {
@@ -128,10 +150,26 @@ public class OrganizationsController : ControllerBase
     [ProducesResponseType(typeof(OrganizationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<OrganizationResponse>> UpdateOrganization(
         Guid id,
         [FromBody] UpdateOrganizationRequest request)
     {
+        // Validate organization access before modification
+        try
+        {
+            ValidateOrganizationAccess(id);
+            RequireOrgAdmin(); // Only org admins can update organization settings
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            if (ex.Message.Contains("administrator privileges"))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+            }
+            return NotFound(new { error = "Organization not found" });
+        }
+
         var organization = await _organizationRepository.GetByIdAsync(id);
         if (organization == null)
         {
@@ -189,8 +227,24 @@ public class OrganizationsController : ControllerBase
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeleteOrganization(Guid id)
     {
+        // Validate organization access before deletion
+        try
+        {
+            ValidateOrganizationAccess(id);
+            RequireOrgAdmin(); // Only org admins can delete organization
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            if (ex.Message.Contains("administrator privileges"))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+            }
+            return NotFound(new { error = "Organization not found" });
+        }
+
         var organization = await _organizationRepository.GetByIdAsync(id);
         if (organization == null)
         {

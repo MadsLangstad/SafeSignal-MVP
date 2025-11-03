@@ -8,34 +8,76 @@ namespace SafeSignal.Cloud.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
-public class AlertsController : ControllerBase
+public class AlertsController : BaseAuthenticatedController
 {
     private readonly IAlertRepository _alertRepository;
     private readonly IBuildingRepository _buildingRepository;
+    private readonly IDeviceRepository _deviceRepository;
+    private readonly IRoomRepository _roomRepository;
     private readonly ILogger<AlertsController> _logger;
 
-    public AlertsController(IAlertRepository alertRepository, IBuildingRepository buildingRepository, ILogger<AlertsController> logger)
+    public AlertsController(
+        IAlertRepository alertRepository,
+        IBuildingRepository buildingRepository,
+        IDeviceRepository deviceRepository,
+        IRoomRepository roomRepository,
+        ILogger<AlertsController> logger)
     {
         _alertRepository = alertRepository;
         _buildingRepository = buildingRepository;
+        _deviceRepository = deviceRepository;
+        _roomRepository = roomRepository;
         _logger = logger;
     }
 
     [HttpPost]
     public async Task<ActionResult<AlertResponse>> CreateAlert([FromBody] CreateAlertRequest request)
     {
+        // Get authenticated user's organizationId - never trust client-provided organizationId
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
+
         var existing = await _alertRepository.GetByAlertIdAsync(request.AlertId);
         if (existing != null)
         {
             return BadRequest(new { error = "Alert with this ID already exists" });
         }
 
+        // Validate DeviceId ownership if provided
+        if (request.DeviceId.HasValue)
+        {
+            var device = await _deviceRepository.GetByIdAsync(request.DeviceId.Value);
+            if (device == null)
+            {
+                return NotFound(new { error = "Device not found" });
+            }
+
+            if (device.OrganizationId != authenticatedOrgId)
+            {
+                return NotFound(new { error = "Device not found" }); // Return 404 to avoid leaking existence
+            }
+        }
+
+        // Validate RoomId ownership if provided
+        if (request.RoomId.HasValue)
+        {
+            var room = await _roomRepository.GetByIdAsync(request.RoomId.Value);
+            if (room == null)
+            {
+                return NotFound(new { error = "Room not found" });
+            }
+
+            var roomOrgId = room.Floor?.Building?.Site?.OrganizationId;
+            if (roomOrgId == null || roomOrgId != authenticatedOrgId)
+            {
+                return NotFound(new { error = "Room not found" }); // Return 404 to avoid leaking existence
+            }
+        }
+
         var alert = new Alert
         {
             Id = Guid.NewGuid(),
             AlertId = request.AlertId,
-            OrganizationId = request.OrganizationId,
+            OrganizationId = authenticatedOrgId,
             DeviceId = request.DeviceId,
             RoomId = request.RoomId,
             TriggeredAt = DateTime.UtcNow,
@@ -59,6 +101,9 @@ public class AlertsController : ControllerBase
     [HttpPost("trigger")]
     public async Task<ActionResult<AlertResponse>> TriggerAlert([FromBody] TriggerAlertRequest request)
     {
+        // Get authenticated user's organizationId
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
+
         // Look up the building to get the OrganizationId from its site
         var building = await _buildingRepository.GetByIdAsync(request.BuildingId);
         if (building == null)
@@ -69,6 +114,49 @@ public class AlertsController : ControllerBase
         if (building.Site == null)
         {
             return BadRequest(new { error = "Building has no associated site" });
+        }
+
+        // Validate that the building belongs to the authenticated user's organization
+        if (building.Site.OrganizationId != authenticatedOrgId)
+        {
+            return NotFound(new { error = "Building not found" }); // 404 to avoid leaking existence
+        }
+
+        // Validate DeviceId ownership if provided
+        if (request.DeviceId.HasValue)
+        {
+            var device = await _deviceRepository.GetByIdAsync(request.DeviceId.Value);
+            if (device == null)
+            {
+                return NotFound(new { error = "Device not found" });
+            }
+
+            if (device.OrganizationId != authenticatedOrgId)
+            {
+                return NotFound(new { error = "Device not found" }); // Return 404 to avoid leaking existence
+            }
+        }
+
+        // Validate RoomId ownership if provided
+        if (request.RoomId.HasValue)
+        {
+            var room = await _roomRepository.GetByIdAsync(request.RoomId.Value);
+            if (room == null)
+            {
+                return NotFound(new { error = "Room not found" });
+            }
+
+            var roomOrgId = room.Floor?.Building?.Site?.OrganizationId;
+            if (roomOrgId == null || roomOrgId != authenticatedOrgId)
+            {
+                return NotFound(new { error = "Room not found" }); // Return 404 to avoid leaking existence
+            }
+
+            // Verify the room actually belongs to the specified building
+            if (room.Floor?.BuildingId != request.BuildingId)
+            {
+                return BadRequest(new { error = "Room does not belong to the specified building" });
+            }
         }
 
         var alert = new Alert
@@ -99,15 +187,17 @@ public class AlertsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AlertResponse>>> ListAlerts(
-        [FromQuery] Guid organizationId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
+        // Get authenticated user's organizationId - never trust client-provided organizationId
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
+
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
         var skip = (page - 1) * pageSize;
-        var alerts = await _alertRepository.GetByOrganizationIdAsync(organizationId, skip, pageSize);
+        var alerts = await _alertRepository.GetByOrganizationIdAsync(authenticatedOrgId, skip, pageSize);
 
         return Ok(alerts.Select(MapToResponse));
     }
@@ -121,6 +211,16 @@ public class AlertsController : ControllerBase
             return NotFound();
         }
 
+        // Validate organization access
+        try
+        {
+            ValidateOrganizationAccess(alert.OrganizationId);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound(); // Return 404 to avoid leaking existence
+        }
+
         return Ok(MapToResponse(alert));
     }
 
@@ -129,6 +229,16 @@ public class AlertsController : ControllerBase
     {
         var alert = await _alertRepository.GetByIdAsync(id);
         if (alert == null)
+        {
+            return NotFound();
+        }
+
+        // Validate organization access before modification
+        try
+        {
+            ValidateOrganizationAccess(alert.OrganizationId);
+        }
+        catch (UnauthorizedAccessException)
         {
             return NotFound();
         }
@@ -147,6 +257,16 @@ public class AlertsController : ControllerBase
     {
         var alert = await _alertRepository.GetByIdAsync(id);
         if (alert == null)
+        {
+            return NotFound();
+        }
+
+        // Validate organization access before modification
+        try
+        {
+            ValidateOrganizationAccess(alert.OrganizationId);
+        }
+        catch (UnauthorizedAccessException)
         {
             return NotFound();
         }

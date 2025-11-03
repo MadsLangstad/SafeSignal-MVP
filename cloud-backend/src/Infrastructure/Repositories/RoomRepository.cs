@@ -11,10 +11,21 @@ public class RoomRepository : Repository<Room>, IRoomRepository
     {
     }
 
+    public override async Task<Room?> GetByIdAsync(Guid id)
+    {
+        return await _context.Rooms
+            .Include(r => r.Floor)
+                .ThenInclude(f => f.Building)
+                    .ThenInclude(b => b.Site)
+            .FirstOrDefaultAsync(r => r.Id == id);
+    }
+
     public async Task<IEnumerable<Room>> GetByBuildingIdAsync(Guid buildingId)
     {
         return await _context.Rooms
             .Include(r => r.Floor)
+                .ThenInclude(f => f.Building)
+                    .ThenInclude(b => b.Site)
             .Where(r => r.Floor!.BuildingId == buildingId)
             .OrderBy(r => r.Floor!.FloorNumber)
             .ThenBy(r => r.RoomNumber)
@@ -24,6 +35,9 @@ public class RoomRepository : Repository<Room>, IRoomRepository
     public async Task<IEnumerable<Room>> GetByFloorIdAsync(Guid floorId)
     {
         return await _context.Rooms
+            .Include(r => r.Floor)
+                .ThenInclude(f => f.Building)
+                    .ThenInclude(b => b.Site)
             .Where(r => r.FloorId == floorId)
             .OrderBy(r => r.RoomNumber)
             .ToListAsync();
@@ -33,6 +47,8 @@ public class RoomRepository : Repository<Room>, IRoomRepository
     {
         return await _context.Rooms
             .Include(r => r.Floor)
+                .ThenInclude(f => f.Building)
+                    .ThenInclude(b => b.Site)
             .FirstOrDefaultAsync(r => r.FloorId == floorId && r.RoomNumber == roomNumber);
     }
 }

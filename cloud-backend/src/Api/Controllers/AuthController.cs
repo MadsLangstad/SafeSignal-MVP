@@ -49,9 +49,24 @@ public class AuthController : ControllerBase
         await _userRepository.UpdateAsync(user);
         await _userRepository.SaveChangesAsync();
 
-        // Generate JWT access token
-        var roles = new List<string> { "User" }; // TODO: Get actual roles from database
-        var accessToken = _jwtTokenService.GenerateAccessToken(user.Id, user.Email, roles);
+        // Get user's primary organization
+        var primaryOrganization = user.UserOrganizations.FirstOrDefault();
+        if (primaryOrganization == null)
+        {
+            _logger.LogWarning("User {Email} has no organization assigned", user.Email);
+            return Unauthorized(new { error = "User has no organization assigned" });
+        }
+
+        // Generate JWT access token with organizationId and roles
+        var roles = user.UserOrganizations
+            .Select(uo => uo.Role.ToString())
+            .Distinct()
+            .ToList();
+
+        _logger.LogInformation("User {Email} has {RoleCount} roles: {Roles}",
+            user.Email, roles.Count, string.Join(", ", roles));
+
+        var accessToken = _jwtTokenService.GenerateAccessToken(user.Id, user.Email, primaryOrganization.OrganizationId, roles);
 
         // Generate and save refresh token
         var refreshToken = _jwtTokenService.GenerateRefreshToken();
@@ -77,8 +92,8 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<ActionResult<AuthTokensResponse>> Refresh([FromBody] RefreshTokenRequest request)
     {
-        // Validate refresh token
-        var userId = await _jwtTokenService.ValidateAccessTokenAsync(request.AccessToken);
+        // Validate access token without checking lifetime (allow expired tokens for refresh)
+        var userId = await _jwtTokenService.ValidateAccessTokenAsync(request.AccessToken, validateLifetime: false);
         if (userId == null)
         {
             _logger.LogWarning("Invalid access token in refresh request");
@@ -99,9 +114,24 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = "User not found or inactive" });
         }
 
-        // Generate new access token
-        var roles = new List<string> { "User" }; // TODO: Get actual roles from database
-        var newAccessToken = _jwtTokenService.GenerateAccessToken(user.Id, user.Email, roles);
+        // Get user's primary organization
+        var primaryOrganization = user.UserOrganizations.FirstOrDefault();
+        if (primaryOrganization == null)
+        {
+            _logger.LogWarning("User {UserId} has no organization assigned", userId);
+            return Unauthorized(new { error = "User has no organization assigned" });
+        }
+
+        // Generate new access token with organizationId and roles
+        var roles = user.UserOrganizations
+            .Select(uo => uo.Role.ToString())
+            .Distinct()
+            .ToList();
+
+        _logger.LogInformation("Refresh: User {UserId} has {RoleCount} roles: {Roles}",
+            user.Id, roles.Count, string.Join(", ", roles));
+
+        var newAccessToken = _jwtTokenService.GenerateAccessToken(user.Id, user.Email, primaryOrganization.OrganizationId, roles);
 
         // Generate new refresh token and revoke old one
         var newRefreshToken = _jwtTokenService.GenerateRefreshToken();

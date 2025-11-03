@@ -11,11 +11,20 @@ public class UserRepository : Repository<User>, IUserRepository
     {
     }
 
+    public override async Task<User?> GetByIdAsync(Guid id)
+    {
+        return await _context.Users
+            .Include(u => u.UserOrganizations)
+                .ThenInclude(uo => uo.Organization)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == id);
+    }
+
     public async Task<User?> GetByEmailAsync(string email)
     {
         return await _context.Users
             .Include(u => u.UserOrganizations)
-            .ThenInclude(uo => uo.Organization)
+                .ThenInclude(uo => uo.Organization)
             .FirstOrDefaultAsync(u => u.Email == email);
     }
 

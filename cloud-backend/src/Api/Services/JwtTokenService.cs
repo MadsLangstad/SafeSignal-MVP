@@ -26,7 +26,7 @@ public class JwtTokenService : IJwtTokenService
         _logger = logger;
     }
 
-    public string GenerateAccessToken(Guid userId, string email, List<string> roles)
+    public string GenerateAccessToken(Guid userId, string email, Guid organizationId, List<string> roles)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
         // Prioritize environment variable, fall back to configuration (same as Program.cs)
@@ -44,6 +44,7 @@ public class JwtTokenService : IJwtTokenService
         {
             new(ClaimTypes.NameIdentifier, userId.ToString()),
             new(ClaimTypes.Email, email),
+            new("organizationId", organizationId.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
         };
@@ -73,6 +74,11 @@ public class JwtTokenService : IJwtTokenService
 
     public Task<Guid?> ValidateAccessTokenAsync(string token)
     {
+        return ValidateAccessTokenAsync(token, validateLifetime: true);
+    }
+
+    public Task<Guid?> ValidateAccessTokenAsync(string token, bool validateLifetime)
+    {
         try
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
@@ -94,8 +100,8 @@ public class JwtTokenService : IJwtTokenService
                 ValidIssuer = issuer,
                 ValidateAudience = !string.IsNullOrEmpty(audience),
                 ValidAudience = audience,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
+                ValidateLifetime = validateLifetime,
+                ClockSkew = validateLifetime ? TimeSpan.Zero : TimeSpan.FromDays(1) // Allow expired tokens for refresh
             };
 
             var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);

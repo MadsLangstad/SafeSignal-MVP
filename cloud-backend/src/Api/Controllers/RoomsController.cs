@@ -6,31 +6,67 @@ using SafeSignal.Cloud.Core.Interfaces;
 
 namespace SafeSignal.Cloud.Api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class RoomsController : ControllerBase
+public class RoomsController : BaseAuthenticatedController
 {
     private readonly IRoomRepository _roomRepository;
+    private readonly IBuildingRepository _buildingRepository;
+    private readonly IFloorRepository _floorRepository;
     private readonly ILogger<RoomsController> _logger;
 
-    public RoomsController(IRoomRepository roomRepository, ILogger<RoomsController> logger)
+    public RoomsController(
+        IRoomRepository roomRepository,
+        IBuildingRepository buildingRepository,
+        IFloorRepository floorRepository,
+        ILogger<RoomsController> logger)
     {
         _roomRepository = roomRepository;
+        _buildingRepository = buildingRepository;
+        _floorRepository = floorRepository;
         _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<RoomResponse>>> GetRoomsByBuilding([FromQuery] Guid? buildingId, [FromQuery] Guid? floorId)
     {
+        // Get authenticated user's organizationId
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
+
         if (buildingId.HasValue)
         {
+            // Validate that the building exists and belongs to the authenticated user's organization
+            var building = await _buildingRepository.GetByIdAsync(buildingId.Value);
+            if (building == null)
+            {
+                return NotFound(new { error = "Building not found" });
+            }
+
+            var buildingOrgId = building.Site?.OrganizationId ?? Guid.Empty;
+            if (buildingOrgId == Guid.Empty || buildingOrgId != authenticatedOrgId)
+            {
+                return NotFound(new { error = "Building not found" }); // Return 404 to avoid leaking existence
+            }
+
             var rooms = await _roomRepository.GetByBuildingIdAsync(buildingId.Value);
             return Ok(rooms.Select(MapToResponse));
         }
 
         if (floorId.HasValue)
         {
+            // Validate that the floor's building belongs to the authenticated user's organization
+            var floor = await _floorRepository.GetByIdAsync(floorId.Value);
+            if (floor == null)
+            {
+                return NotFound(new { error = "Floor not found" });
+            }
+
+            var floorOrgId = floor.Building?.Site?.OrganizationId ?? Guid.Empty;
+            if (floorOrgId == Guid.Empty || floorOrgId != authenticatedOrgId)
+            {
+                return NotFound(new { error = "Floor not found" }); // Return 404 to avoid leaking existence
+            }
+
             var rooms = await _roomRepository.GetByFloorIdAsync(floorId.Value);
             return Ok(rooms.Select(MapToResponse));
         }
@@ -48,12 +84,45 @@ public class RoomsController : ControllerBase
             return NotFound(new { error = "Room not found" });
         }
 
+        // Validate organization access via Floor -> Building -> Site -> Organization chain
+        var organizationId = room.Floor?.Building?.Site?.OrganizationId;
+        if (organizationId == null)
+        {
+            _logger.LogWarning("Room {RoomId} has incomplete organization chain", id);
+            return BadRequest(new { error = "Room has incomplete organization data" });
+        }
+
+        try
+        {
+            ValidateOrganizationAccess(organizationId.Value);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound();
+        }
+
         return Ok(MapToResponse(room));
     }
 
     [HttpPost]
     public async Task<ActionResult<RoomResponse>> CreateRoom([FromBody] CreateRoomRequest request)
     {
+        // Get authenticated user's organizationId
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
+
+        // Validate that the floor exists and its building belongs to the authenticated user's organization
+        var floor = await _floorRepository.GetByIdAsync(request.FloorId);
+        if (floor == null)
+        {
+            return NotFound(new { error = "Floor not found" });
+        }
+
+        var floorOrgId = floor.Building?.Site?.OrganizationId ?? Guid.Empty;
+        if (floorOrgId == Guid.Empty || floorOrgId != authenticatedOrgId)
+        {
+            return NotFound(new { error = "Floor not found" }); // Return 404 to avoid leaking existence
+        }
+
         // Check if room number already exists on this floor
         var existingRoom = await _roomRepository.GetByFloorAndRoomNumberAsync(request.FloorId, request.RoomNumber);
         if (existingRoom != null)
@@ -74,7 +143,8 @@ public class RoomsController : ControllerBase
         await _roomRepository.AddAsync(room);
         await _roomRepository.SaveChangesAsync();
 
-        _logger.LogInformation("Room created: {RoomId} - {RoomNumber}", room.Id, room.RoomNumber);
+        _logger.LogInformation("Room created: {RoomId} - {RoomNumber} in organization {OrganizationId}",
+            room.Id, room.RoomNumber, authenticatedOrgId);
 
         return CreatedAtAction(nameof(GetRoom), new { id = room.Id }, MapToResponse(room));
     }
@@ -87,6 +157,23 @@ public class RoomsController : ControllerBase
         if (room == null)
         {
             return NotFound(new { error = "Room not found" });
+        }
+
+        // Validate organization access before modification
+        var organizationId = room.Floor?.Building?.Site?.OrganizationId;
+        if (organizationId == null)
+        {
+            _logger.LogWarning("Room {RoomId} has incomplete organization chain", id);
+            return BadRequest(new { error = "Room has incomplete organization data" });
+        }
+
+        try
+        {
+            ValidateOrganizationAccess(organizationId.Value);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound();
         }
 
         // Check if updating room number conflicts with existing room
@@ -131,6 +218,23 @@ public class RoomsController : ControllerBase
         if (room == null)
         {
             return NotFound(new { error = "Room not found" });
+        }
+
+        // Validate organization access before deletion
+        var organizationId = room.Floor?.Building?.Site?.OrganizationId;
+        if (organizationId == null)
+        {
+            _logger.LogWarning("Room {RoomId} has incomplete organization chain", id);
+            return BadRequest(new { error = "Room has incomplete organization data" });
+        }
+
+        try
+        {
+            ValidateOrganizationAccess(organizationId.Value);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound();
         }
 
         await _roomRepository.DeleteAsync(room);
