@@ -19,6 +19,7 @@ export default function AlertHistoryScreen() {
   const { isDark } = useTheme();
   const {
     alerts,
+    buildings,
     hasMoreAlerts,
     loadAlerts,
     loadMoreAlerts,
@@ -65,8 +66,19 @@ export default function AlertHistoryScreen() {
     }
   };
 
+  const getBuildingAndRoomName = (alert: Alert) => {
+    const building = buildings.find((b) => b.id === alert.buildingId);
+    if (!building) return 'Unknown Location';
+
+    const room = building.rooms.find((r) => r.id === alert.sourceRoomId);
+    if (!room) return building.name;
+
+    return `${building.name} • ${room.name}`;
+  };
+
   const renderAlert = ({ item }: { item: Alert }) => {
     const config = ALERT_MODES[item.mode];
+    const location = getBuildingAndRoomName(item);
 
     return (
       <TouchableOpacity className={`flex-row mx-4 my-2 rounded-xl overflow-hidden shadow-sm ${
@@ -116,7 +128,7 @@ export default function AlertHistoryScreen() {
                 color={isDark ? '#9CA3AF' : '#666'}
               />
               <Text className={`ml-2.5 text-sm ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                {item.sourceRoomId || 'Unknown Room'}
+                {location}
               </Text>
             </View>
 
