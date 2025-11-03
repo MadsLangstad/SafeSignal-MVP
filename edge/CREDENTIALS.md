@@ -96,9 +96,16 @@
 - **Authentication**: JWT Bearer tokens with refresh token rotation
 - **Swagger UI**: http://localhost:5118/swagger
 - **Test User Credentials**:
-  - **Email**: `test@example.com`
-  - **Password**: `Test1234`
-  - **Notes**: User already seeded in database. To change password, run: `node cloud-backend/generate-hash.js YourNewPassword`
+  - **SuperAdmin** (Full Access):
+    - **Email**: `admin@safesignal.com`
+    - **Password**: `Admin@12345678!`
+    - **Role**: SuperAdmin
+  - **Viewer** (Read-Only):
+    - **Email**: `testuser@safesignal.com`
+    - **Password**: `TestUser123!@#`
+    - **Role**: Viewer
+  - **Organization**: Test School District (`a216abd0-2c87-4828-8823-48dc8c9f0a8a`)
+  - **Notes**: All passwords meet OWASP/NIST requirements (12+ chars, complexity)
 - **Key Endpoints**:
   - `POST /api/auth/login` - Login with email/password → returns access token + refresh token
   - `POST /api/auth/refresh` - Refresh access token using refresh token
@@ -192,7 +199,7 @@ for i in {1..5}; do openssl rand -base64 32; done
 | **MinIO Console** | http://localhost:9001 | `safesignal-admin` | `safesignal-dev-password-change-in-prod` | ⚠️ CHANGE IN PROD |
 | **Policy Service** | http://localhost:5100 | - | - | No auth (add API key) |
 | **PA Service** | http://localhost:5101 | - | - | No auth (add API key) |
-| **Cloud Backend API** | http://localhost:5118 | `test@example.com` | `Test1234` | JWT Bearer token + refresh |
+| **Cloud Backend API** | http://localhost:5118 | `admin@safesignal.com` | `Admin@12345678!` | JWT Bearer + refresh (SuperAdmin) |
 | **SQLite DB** | Container filesystem | - | - | `docker exec` access |
 
 ---
@@ -237,7 +244,7 @@ Before deploying to production, ensure you:
 - [x] Rate limiting (5 login attempts/minute per IP)
 - [x] Authorization on all protected endpoints
 - [x] CORS configured for mobile apps
-- [ ] Increase password policy to 12+ characters with complexity
+- [x] Password policy: 12+ characters with complexity (OWASP/NIST compliant)
 - [ ] Implement organization data isolation (multi-tenancy)
 - [ ] Enable HTTPS/TLS for all API endpoints
 - [ ] Add FluentValidation for all request DTOs

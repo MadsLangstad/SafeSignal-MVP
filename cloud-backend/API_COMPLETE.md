@@ -1,7 +1,10 @@
 # SafeSignal Cloud Backend - API Implementation Complete
 
-**Date**: 2025-11-02
-**Status**: MVP Complete - Production Ready
+**Date**: 2025-11-03 (Updated Post-Audit)
+**Status**: MVP Feature-Complete - Security Hardening Required
+
+**⚠️ IMPORTANT**: This document shows `/api/v1/...` routes. **Actual implementation uses `/api/[controller]`**.
+API versioning planned for Phase 3. See `claudedocs/REVISED_ROADMAP.md`.
 
 ---
 
@@ -19,8 +22,11 @@
 
 ## API Endpoints
 
-### Organizations API (`/api/v1/organizations`)
+**⚠️ ROUTE CORRECTION**: Examples below show `/api/v1/...` (planned). **Current routes**: `/api/[controller]`
 
+### Organizations API
+
+**Documented Routes** (Planned v1):
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/organizations` | Create organization |
@@ -29,8 +35,18 @@
 | PUT | `/api/v1/organizations/{id}` | Update organization |
 | DELETE | `/api/v1/organizations/{id}` | Soft delete organization |
 
-### Devices API (`/api/v1/devices`)
+**Actual Routes** (Current):
+```
+POST   /api/organizations
+GET    /api/organizations
+GET    /api/organizations/{id}
+PUT    /api/organizations/{id}
+DELETE /api/organizations/{id}
+```
 
+### Devices API
+
+**Documented Routes** (Planned v1):
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/devices` | Register new device |
@@ -38,8 +54,17 @@
 | GET | `/api/v1/devices/{id}` | Get device details |
 | PUT | `/api/v1/devices/{id}` | Update device |
 
-### Alerts API (`/api/v1/alerts`)
+**Actual Routes** (Current):
+```
+POST   /api/devices
+GET    /api/devices
+GET    /api/devices/{id}
+PUT    /api/devices/{id}
+```
 
+### Alerts API
+
+**Documented Routes** (Planned v1):
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/alerts` | Create alert from edge gateway |
@@ -47,6 +72,19 @@
 | GET | `/api/v1/alerts/{id}` | Get alert details |
 | PUT | `/api/v1/alerts/{id}/acknowledge` | Acknowledge alert |
 | PUT | `/api/v1/alerts/{id}/resolve` | Resolve alert |
+| ❌ POST | `/api/v1/alerts/{id}/all-clear/initiate` | **NOT YET IMPLEMENTED** |
+| ❌ POST | `/api/v1/alerts/{id}/all-clear/approve` | **NOT YET IMPLEMENTED** |
+
+**Actual Routes** (Current):
+```
+POST   /api/alerts
+GET    /api/alerts
+GET    /api/alerts/{id}
+PUT    /api/alerts/{id}/acknowledge
+PUT    /api/alerts/{id}/resolve
+
+All Clear endpoints - Phase 2 (not yet implemented)
+```
 
 ---
 
@@ -74,9 +112,11 @@ dotnet run
 
 ### 3. Test API
 
+**⚠️ CORRECTED EXAMPLES** (Use actual routes, not `/api/v1/...`):
+
 ```bash
 # Create organization
-curl -X POST http://localhost:5118/api/v1/organizations \
+curl -X POST http://localhost:5118/api/organizations \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test School District",
@@ -87,7 +127,7 @@ curl -X POST http://localhost:5118/api/v1/organizations \
 # Response includes organization ID - save it as ORG_ID
 
 # Register device
-curl -X POST http://localhost:5118/api/v1/devices \
+curl -X POST http://localhost:5118/api/devices \
   -H "Content-Type: application/json" \
   -d '{
     "deviceId": "ESP32-001",
@@ -100,7 +140,7 @@ curl -X POST http://localhost:5118/api/v1/devices \
 # Response includes device ID - save it as DEVICE_ID
 
 # Create alert
-curl -X POST http://localhost:5118/api/v1/alerts \
+curl -X POST http://localhost:5118/api/alerts \
   -H "Content-Type: application/json" \
   -d '{
     "alertId": "ALERT-001",
@@ -113,7 +153,15 @@ curl -X POST http://localhost:5118/api/v1/alerts \
   }'
 
 # List alerts
-curl "http://localhost:5118/api/v1/alerts?organizationId=YOUR_ORG_ID"
+curl "http://localhost:5118/api/alerts?organizationId=YOUR_ORG_ID"
+
+# Acknowledge alert
+curl -X PUT http://localhost:5118/api/alerts/ALERT_ID/acknowledge \
+  -H "Content-Type: application/json"
+
+# Resolve alert
+curl -X PUT http://localhost:5118/api/alerts/ALERT_ID/resolve \
+  -H "Content-Type: application/json"
 ```
 
 ---
@@ -332,33 +380,57 @@ POST /api/v1/alerts
 
 ---
 
-## Next Steps (Future Enhancements)
+## Audit Update (2025-11-03): What's Actually Built
 
-### Phase 2 (Next Sprint)
-- [ ] JWT authentication and authorization
-- [ ] Site/Building/Floor/Room CRUD endpoints
-- [ ] User management API
-- [ ] Role-based access control (RBAC)
-- [ ] Device provisioning workflow
-- [ ] WebSocket support for real-time alerts
+### ✅ Items Marked "Future" That Are COMPLETE:
+- ✅ **JWT authentication** - IMPLEMENTED (not "Phase 2")
+- ✅ **Site/Building/Floor/Room CRUD** - IMPLEMENTED
+- ✅ **User management API** - IMPLEMENTED
+- ✅ **Role-based access control (RBAC)** - IMPLEMENTED
+- ✅ **Device provisioning** - IMPLEMENTED
+- ✅ **Redis infrastructure** - READY (not configured)
+- ✅ **Structured logging** - IMPLEMENTED
 
-### Phase 3 (Production Hardening)
-- [ ] Redis caching layer
-- [ ] Rate limiting
-- [ ] API versioning strategy
-- [ ] Health check endpoints
-- [ ] Prometheus metrics
-- [ ] Structured logging (Serilog)
-- [ ] Unit and integration tests
-- [ ] CI/CD pipeline
+### ⚠️ What Actually Needs Work (From Security Audit):
+- ❌ **Login brute force protection** - NOT IMPLEMENTED (4h fix)
+- ❌ **Input validation** on key endpoints - PARTIAL (6h fix)
+- ❌ **Audit logging** - NOT IMPLEMENTED (8h)
+- ❌ **Token blacklist** (logout ineffective) - NOT IMPLEMENTED (6h)
+- ❌ **Comprehensive tests** - 2% coverage, not 80% (70h)
+- ❌ **All Clear endpoints** - NOT IMPLEMENTED (16h)
+- ⚠️ **Password policy** - Weak (6 chars, needs 12+) (1h)
+- ⚠️ **JWT config** - Falls back to insecure defaults (1h)
 
-### Phase 4 (Advanced Features)
-- [ ] Alert aggregation and analytics
-- [ ] Device firmware update management
-- [ ] Mobile push notifications
-- [ ] SMS alert integration
-- [ ] Alert escalation workflows
-- [ ] Reporting and dashboards
+**See**: `claudedocs/REVISED_ROADMAP.md` for production roadmap
+
+## Next Steps (Actual - From Audit)
+
+### Phase 1: Security Hardening (Weeks 1-3, 29h)
+**Critical for production deployment**:
+- Login brute force protection
+- Password complexity requirements
+- Input validation (FluentValidation)
+- Audit logging infrastructure
+- Token blacklist for logout
+- Environment-specific configuration
+
+### Phase 2: All Clear Feature (Weeks 3-4, 16h)
+**Safety-critical two-person approval**:
+- `/api/alerts/{id}/all-clear/initiate`
+- `/api/alerts/{id}/all-clear/approve`
+- Database schema for dual approval
+- Business logic for role separation
+
+### Phase 3: API Versioning (Week 4, 4-8h)
+**Fix documentation-reality mismatch**:
+- Implement `/api/v1/...` routing OR
+- Update all docs to `/api/[controller]`
+
+### Phase 4: Testing (Weeks 5-6, 70h)
+**Achieve documented coverage**:
+- ≥70% unit test coverage (realistic target)
+- Integration tests for critical flows
+- E2E tests with Playwright
 
 ---
 
@@ -385,14 +457,19 @@ POST /api/v1/alerts
 
 ---
 
-## Known Limitations (MVP)
+## Known Limitations (Audit-Updated)
 
-1. **No Authentication**: All endpoints are public
-2. **No Rate Limiting**: Can be abused
-3. **No Caching**: All queries hit database
-4. **No Validation**: Minimal input validation
-5. **No Tests**: No automated test coverage
-6. **Enum Serialization**: Returns numeric values instead of strings
+**⚠️ CORRECTED** - Some items listed here are actually implemented:
+
+1. ~~**No Authentication**~~ → ✅ **JWT Authentication IMPLEMENTED** (needs hardening)
+2. **No Rate Limiting** → ⚠️ Library present, not configured (Phase 1)
+3. **No Caching** → ⚠️ Redis ready, not configured
+4. ~~**No Validation**~~ → ⚠️ **FluentValidation PARTIAL** (needs completion)
+5. **No Tests** → ❌ **2% coverage** (needs 70h to achieve ≥70%)
+6. **Enum Serialization** → ⚠️ Returns numeric values
+7. **No Brute Force Protection** → ❌ **CRITICAL** (4h fix)
+8. **No Audit Logging** → ❌ **CRITICAL** (8h)
+9. **Logout Ineffective** → ❌ No token blacklist (6h fix)
 
 ---
 
@@ -436,12 +513,14 @@ dotnet ef migrations remove --project src/Infrastructure --startup-project src/A
 
 ---
 
-**Status**: MVP Complete ✅
-**Ready For**: Integration testing, Edge gateway integration, Authentication layer
-**Documentation**: Complete
-**Next Task**: Integrate with edge gateway MQTT broker for real-time alert ingestion
+**Status**: MVP Feature-Complete (95%), Production Hardening Required (70%)
+**Audit Score**: 7/10 - Strong architecture, needs security hardening
+**Ready For**: Mobile integration (with Phase 1 security fixes)
+**Documentation**: Updated to reflect actual routes
+**Next Task**: Phase 1 security hardening (29h) - See `claudedocs/REVISED_ROADMAP.md`
 
 ---
 
-**Last Updated**: 2025-11-02
-**Version**: 1.0 MVP
+**Last Updated**: 2025-11-03 (Post-Audit)
+**Version**: 1.0 MVP (Audit-Corrected)
+**Audit Reports**: See `claudedocs/` for comprehensive findings

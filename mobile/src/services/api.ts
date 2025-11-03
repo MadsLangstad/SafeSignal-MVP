@@ -41,8 +41,14 @@ class ApiClient {
     this.client.interceptors.request.use(
       async (config) => {
         const tokens = await secureStorage.getTokens();
+        console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url} - Token available:`, !!tokens?.accessToken);
         if (tokens?.accessToken) {
           config.headers.Authorization = `Bearer ${tokens.accessToken}`;
+          console.log(`[API Request] Authorization header set for ${config.url}`);
+          console.log(`[API Request] Token preview: ${tokens.accessToken.substring(0, 50)}...`);
+          console.log(`[API Request] Token expires:`, tokens.expiresAt);
+        } else {
+          console.warn(`[API Request] NO TOKEN available for ${config.url}`);
         }
         return config;
       },
@@ -92,7 +98,13 @@ class ApiClient {
             });
             this.failedQueue = [];
 
+            // Clear tokens and user data on refresh failure
             await secureStorage.clearTokens();
+            await secureStorage.clearUser();
+
+            // Log a clear message for debugging
+            console.log('Session expired - tokens cleared. Please login again.');
+
             throw refreshError;
           } finally {
             this.isRefreshing = false;
@@ -112,8 +124,23 @@ class ApiClient {
         { email, password }
       );
 
+      console.log('[Login] Response received:', {
+        hasUser: !!response.data.user,
+        hasTokens: !!response.data.tokens,
+        tokenKeys: response.data.tokens ? Object.keys(response.data.tokens) : [],
+        accessTokenPresent: !!(response.data.tokens as any)?.accessToken,
+      });
+
       await secureStorage.saveTokens(response.data.tokens);
       await secureStorage.saveUser(response.data.user);
+
+      // Verify tokens were saved
+      const savedTokens = await secureStorage.getTokens();
+      console.log('[Login] Tokens saved and verified:', {
+        tokensExist: !!savedTokens,
+        accessTokenExists: !!savedTokens?.accessToken,
+        accessTokenLength: savedTokens?.accessToken?.length || 0,
+      });
 
       return { success: true, data: response.data };
     } catch (error) {
@@ -503,14 +530,38 @@ class ApiClient {
 
   private async executePendingAction(action: PendingAction): Promise<void> {
     switch (action.type) {
-      case 'TRIGGER_ALERT':
-        await this.client.post('/api/alerts/trigger', {
+      case 'TRIGGER_ALERT': {
+        const response = await this.client.post<any>('/api/alerts/trigger', {
           buildingId: action.payload.buildingId,
           roomId: action.payload.roomId,
           mode: action.payload.mode,
           metadata: action.payload.metadata,
         });
+
+        // Update local alert with server-issued ID
+        if (action.payload.localAlertId && response.data?.id) {
+          const backendAlert = response.data;
+          const updatedAlert: Alert = {
+            id: backendAlert.id, // Server GUID
+            tenantId: backendAlert.organizationId,
+            buildingId: backendAlert.buildingId || action.payload.buildingId,
+            sourceRoomId: backendAlert.roomId || action.payload.roomId,
+            mode: this.mapAlertTypeToMode(backendAlert.alertType),
+            status: this.mapBackendStatus(backendAlert.status),
+            triggeredBy: backendAlert.deviceId || 'UNKNOWN',
+            triggeredAt: new Date(backendAlert.triggeredAt),
+            synced: true,
+          };
+
+          // Replace local alert with server version
+          await database.deleteAlert(action.payload.localAlertId);
+          await database.saveAlert(updatedAlert);
+
+          // Update any queued actions that reference the old local ID
+          await this.updateQueuedAlertReferences(action.payload.localAlertId, backendAlert.id);
+        }
         break;
+      }
 
       case 'ACKNOWLEDGE_ALERT':
         await this.client.put(`/api/alerts/${action.payload.alertId}/acknowledge`);
@@ -534,6 +585,30 @@ class ApiClient {
 
   private async addToPendingQueue(action: PendingAction): Promise<void> {
     await database.addPendingAction(action);
+  }
+
+  /**
+   * Update queued actions that reference a local alert ID with the server GUID
+   */
+  private async updateQueuedAlertReferences(localAlertId: string, serverAlertId: string): Promise<void> {
+    const pendingActions = await database.getPendingActions();
+
+    for (const action of pendingActions) {
+      let updated = false;
+
+      if (action.type === 'ACKNOWLEDGE_ALERT' && action.payload.alertId === localAlertId) {
+        action.payload.alertId = serverAlertId;
+        updated = true;
+      } else if (action.type === 'RESOLVE_ALERT' && action.payload.alertId === localAlertId) {
+        action.payload.alertId = serverAlertId;
+        updated = true;
+      }
+
+      if (updated) {
+        // Update the action in the database with the new server ID
+        await database.updatePendingActionPayload(action.id, action.payload);
+      }
+    }
   }
 
   // Utility Methods

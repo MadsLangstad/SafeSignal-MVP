@@ -8,7 +8,11 @@ class SecureStorage {
       await SecureStore.setItemAsync(
         AUTH_CONFIG.TOKEN_KEY,
         JSON.stringify(tokens),
-        { requireAuthentication: false }
+        {
+          requireAuthentication: false, // Don't require auth on every access (too disruptive)
+          // SecureStore is already encrypted, protected by device passcode/biometric at OS level
+          keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+        }
       );
     } catch (error) {
       console.error('Failed to save tokens:', error);
@@ -45,7 +49,10 @@ class SecureStorage {
       await SecureStore.setItemAsync(
         AUTH_CONFIG.USER_KEY,
         JSON.stringify(user),
-        { requireAuthentication: false }
+        {
+          requireAuthentication: false, // Don't require auth on every access
+          keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+        }
       );
     } catch (error) {
       console.error('Failed to save user:', error);
@@ -82,7 +89,10 @@ class SecureStorage {
       await SecureStore.setItemAsync(
         AUTH_CONFIG.BIOMETRIC_KEY,
         enabled ? '1' : '0',
-        { requireAuthentication: false }
+        {
+          requireAuthentication: false,
+          keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+        }
       );
     } catch (error) {
       console.error('Failed to set biometric preference:', error);

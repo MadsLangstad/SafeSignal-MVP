@@ -19,7 +19,9 @@
       "infoPlist": {
         "NSFaceIDUsageDescription": "SafeSignal uses Face ID to securely authenticate and unlock the app.",
         "NSCameraUsageDescription": "SafeSignal requires camera access for Face ID authentication.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -36,7 +38,9 @@
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
         "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
+        "USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -61,8 +65,9 @@
     "extra": {
       "apiUrl": "http://192.168.0.30:5118",
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "f9bb6fc3-521c-4a23-9247-9892dd02312c"
       }
-    }
+    },
+    "owner": "madsdev"
   }
 }

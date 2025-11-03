@@ -101,7 +101,7 @@ public class JwtTokenService : IJwtTokenService
                 ValidateAudience = !string.IsNullOrEmpty(audience),
                 ValidAudience = audience,
                 ValidateLifetime = validateLifetime,
-                ClockSkew = validateLifetime ? TimeSpan.Zero : TimeSpan.FromDays(1) // Allow expired tokens for refresh
+                ClockSkew = validateLifetime ? TimeSpan.Zero : TimeSpan.FromMinutes(5) // Allow 5min clock skew for refresh
             };
 
             var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);

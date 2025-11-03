@@ -29,6 +29,28 @@ React Native + Expo mobile application for the SafeSignal emergency alert system
     /types          # TypeScript type definitions
 ```
 
+## App Screens (Actual Implementation)
+
+The mobile app consists of 6 primary screens:
+
+1. **LoginScreen** - Email/password authentication with biometric unlock option
+2. **HomeScreen** - Main dashboard with emergency alert trigger button and building/room selection
+3. **AlertConfirmationScreen** - Confirmation dialog before triggering emergency alert
+4. **AlertSuccessScreen** - Success feedback after alert is sent
+5. **AlertHistoryScreen** - List of past alerts with sync status indicators
+6. **SettingsScreen** - App configuration and user preferences
+
+**Navigation Flow**:
+```
+LoginScreen
+  → HomeScreen (Tab Navigator)
+     ├─ HomeScreen (Alert Trigger)
+     │   └─ AlertConfirmationScreen
+     │       └─ AlertSuccessScreen
+     ├─ AlertHistoryScreen (History)
+     └─ SettingsScreen (Settings)
+```
+
 ## Prerequisites
 
 - Node.js 18+ and npm/yarn
@@ -146,11 +168,23 @@ Or update `app.json`:
 
 ## Security Features
 
-- ✅ JWT token authentication with automatic refresh
-- ✅ Secure credential storage (Keychain/Keystore)
-- ✅ Biometric authentication (Face ID/Touch ID/Fingerprint)
-- ✅ TLS/HTTPS for all API communication
-- ✅ No sensitive data in logs
+**⚠️ SECURITY STATUS (Post-Audit 2025-11-03) - 72% Production-Ready**:
+
+✅ **Implemented**:
+- JWT token authentication with automatic refresh
+- Secure credential storage (Keychain/Keystore)
+- Biometric authentication (Face ID/Touch ID/Fingerprint)
+- TLS/HTTPS for all API communication
+- No sensitive data in logs
+
+⚠️ **Missing (Phase 1b - 13h)**:
+- ❌ Error boundary for crash handling (2h)
+- ❌ Certificate pinning for HTTPS (4h)
+- ❌ Crash reporting integration (2h)
+- ⚠️ Biometric login flow needs fix (3h)
+- ⚠️ Logging hygiene improvements (2h)
+
+See `claudedocs/REVISED_ROADMAP.md` for complete security hardening plan.
 
 ## Development Workflow
 

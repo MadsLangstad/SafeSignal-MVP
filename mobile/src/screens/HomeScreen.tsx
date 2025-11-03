@@ -37,10 +37,11 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = React.useState(false);
 
   useEffect(() => {
-    if (buildings.length === 0) {
+    // Only load buildings if user is authenticated
+    if (user && buildings.length === 0) {
       loadBuildings();
     }
-  }, []);
+  }, [user]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -263,10 +264,21 @@ export default function HomeScreen() {
         {/* Status Info */}
         <View className="mt-8 items-center">
           <View className="flex-row items-center">
-            <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-            <Text className={`ml-2 text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-              System Online
-            </Text>
+            {syncStatus.isSyncing || syncStatus.pendingCount > 0 ? (
+              <>
+                <Ionicons name="sync" size={20} color="#FF9800" />
+                <Text className={`ml-2 text-sm font-semibold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                  Syncing ({syncStatus.pendingCount} pending)
+                </Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                <Text className={`ml-2 text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                  System Online
+                </Text>
+              </>
+            )}
           </View>
           {syncStatus.lastSyncAt && (
             <Text className={`mt-2 text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>

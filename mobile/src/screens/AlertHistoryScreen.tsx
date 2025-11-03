@@ -18,6 +18,7 @@ import type { Alert } from '../types';
 export default function AlertHistoryScreen() {
   const { isDark } = useTheme();
   const {
+    user,
     alerts,
     buildings,
     hasMoreAlerts,
@@ -30,10 +31,11 @@ export default function AlertHistoryScreen() {
   const [loadingMore, setLoadingMore] = React.useState(false);
 
   useEffect(() => {
-    if (alerts.length === 0) {
+    // Only load alerts if user is authenticated
+    if (user && alerts.length === 0) {
       loadAlerts(true);
     }
-  }, []);
+  }, [user]);
 
   const onRefresh = async () => {
     setRefreshing(true);

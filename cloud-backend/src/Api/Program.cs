@@ -34,13 +34,58 @@ builder.Services.AddScoped<IRoomRepository, RoomRepository>();
 
 // Register services
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddSingleton<ILoginAttemptService, LoginAttemptService>();
+builder.Services.AddSingleton<IPasswordValidator, PasswordValidator>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 
-// Configure JWT Authentication
+// Register background services
+builder.Services.AddHostedService<AuditRetentionService>();
+
+// Configure JWT Authentication with strict validation
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-// Prioritize environment variable, fall back to configuration
+
+// Get secret key from environment variable OR configuration (development only)
 var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
-    ?? jwtSettings["SecretKey"]
-    ?? throw new InvalidOperationException("JWT SecretKey not configured in environment variable JWT_SECRET_KEY or appsettings");
+    ?? jwtSettings["SecretKey"];
+
+// Validate secret key
+if (string.IsNullOrWhiteSpace(secretKey))
+{
+    throw new InvalidOperationException(
+        "JWT SecretKey not configured. " +
+        "Set JWT_SECRET_KEY environment variable in production or configure in appsettings.Development.json for development.");
+}
+
+if (secretKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        $"JWT SecretKey must be at least 32 characters long for security. Current length: {secretKey.Length}");
+}
+
+// Warn if using default development key in non-development environment
+if (!builder.Environment.IsDevelopment() && secretKey.Contains("DEV_SECRET_KEY"))
+{
+    throw new InvalidOperationException(
+        "Development JWT secret key detected in non-development environment. " +
+        "Set JWT_SECRET_KEY environment variable with a secure production key.");
+}
+
+// Validate Issuer and Audience
+var issuer = jwtSettings["Issuer"];
+var audience = jwtSettings["Audience"];
+
+if (string.IsNullOrWhiteSpace(issuer))
+{
+    throw new InvalidOperationException("JWT Issuer not configured in appsettings");
+}
+
+if (string.IsNullOrWhiteSpace(audience))
+{
+    throw new InvalidOperationException("JWT Audience not configured in appsettings");
+}
+
+// Log JWT configuration (without exposing secret key)
+Console.WriteLine($"JWT Configuration: Issuer={issuer}, Audience={audience}, SecretKeyLength={secretKey.Length} chars");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -54,11 +99,13 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
         ValidateIssuer = true,
-        ValidIssuer = jwtSettings["Issuer"],
+        ValidIssuer = issuer,
         ValidateAudience = true,
-        ValidAudience = jwtSettings["Audience"],
+        ValidAudience = audience,
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
+        ClockSkew = TimeSpan.Zero, // No tolerance for expired tokens
+        RequireExpirationTime = true,
+        RequireSignedTokens = true
     };
 
     // Add events for debugging
@@ -231,6 +278,9 @@ app.UseIpRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Audit logging (after authentication so we can access user claims)
+app.UseMiddleware<AuditLoggingMiddleware>();
 
 app.MapControllers();
 

@@ -35,3 +35,8 @@ public record RefreshTokenRequest(
 public record LogoutRequest(
     string RefreshToken
 );
+
+public record ChangePasswordRequest(
+    string CurrentPassword,
+    string NewPassword
+);

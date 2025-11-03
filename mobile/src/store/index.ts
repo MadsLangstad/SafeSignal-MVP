@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiClient } from '../services/api';
 import { authService } from '../services/auth';
+import { secureStorage } from '../services/secureStorage';
 import { database } from '../database';
 import type {
   User,
@@ -92,6 +93,26 @@ export const useAppStore = create<AppState>(
           isLoading: false,
         });
 
+        // FIX: Wait for tokens to be available in SecureStore before making authenticated API calls
+        // This prevents race condition where tokens aren't yet readable when subsequent API calls execute
+        let retries = 0;
+        const maxRetries = 10;
+        while (retries < maxRetries) {
+          const tokens = await secureStorage.getTokens();
+          if (tokens?.accessToken) {
+            console.log('Tokens verified available after login');
+            break;
+          }
+          retries++;
+          if (retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        }
+
+        if (retries >= maxRetries) {
+          console.error('Token storage verification timeout - tokens may not be available');
+        }
+
         // Load data (database is already initialized in App.tsx)
         // Run in background to not block login completion
         Promise.all([
@@ -145,15 +166,9 @@ export const useAppStore = create<AppState>(
         console.log('User session found, setting auth state...');
         set({ user, isAuthenticated: true });
 
-        // Load data in background without blocking initialization
-        // This prevents the app from hanging on API timeouts
-        Promise.all([
-          get().loadBuildings(),
-          get().loadAlerts()
-        ]).catch((error) => {
-          console.error('Background data load error (non-blocking):', error);
-          // Data will be loaded later when user interacts or sync runs
-        });
+        // Don't auto-load data here - let screens handle it via useEffect
+        // This prevents 401 errors if tokens are invalid/expired
+        // The screens check auth state and will trigger logout on 401
       } else {
         console.log('No user session found, showing login screen');
         set({ user: null, isAuthenticated: false });
@@ -186,8 +201,17 @@ export const useAppStore = create<AppState>(
           }
         }
       }
-    } catch (error) {
-      console.error('Load buildings error:', error);
+    } catch (error: any) {
+      // If 401 Unauthorized, session expired - force logout
+      const status = error?.response?.status || error?.status;
+      const isAuthError = status === 401 || error?.message?.includes('401');
+
+      if (isAuthError) {
+        console.log('Authentication error detected in loadBuildings - logging out');
+        await get().logout();
+      } else {
+        console.error('Load buildings error:', error);
+      }
     }
   },
 
@@ -273,8 +297,17 @@ export const useAppStore = create<AppState>(
           hasMoreAlerts: response.data.length === 20,
         }));
       }
-    } catch (error) {
-      console.error('Load alerts error:', error);
+    } catch (error: any) {
+      // If 401 Unauthorized, session expired - force logout
+      const status = error?.response?.status || error?.status;
+      const isAuthError = status === 401 || error?.message?.includes('401');
+
+      if (isAuthError) {
+        console.log('Authentication error detected in loadAlerts - logging out');
+        await get().logout();
+      } else {
+        console.error('Load alerts error:', error);
+      }
     }
   },
 

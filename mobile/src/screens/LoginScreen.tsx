@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services/auth';
+import { secureStorage } from '../services/secureStorage';
 import { VALIDATION, ERROR_MESSAGES } from '../constants';
 import { SafeSignalLogo } from '../components';
 
@@ -82,9 +83,18 @@ export default function LoginScreen() {
     const result = await authService.authenticateWithBiometric();
 
     if (result.success) {
-      // User authenticated with biometric, proceed with auto-login
-      // In a real app, you'd have stored credentials securely
-      Alert.alert('Success', 'Biometric authentication successful');
+      // Biometric authentication successful, load stored tokens/credentials
+      const tokens = await secureStorage.getTokens();
+      const user = await secureStorage.getUser();
+
+      if (tokens && user) {
+        // Tokens exist, validate and auto-login
+        // The auth context will handle token refresh if needed
+        await login(user.email, ''); // Pass empty password since we're using stored tokens
+      } else {
+        // No stored credentials, fall back to manual login
+        Alert.alert('Setup Required', 'Please login with your email and password first');
+      }
     } else {
       Alert.alert('Authentication Failed', result.error || 'Please try again');
     }

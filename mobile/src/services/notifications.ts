@@ -116,7 +116,11 @@ class NotificationService {
     // Listener for notifications received while app is foregrounded
     this.notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
-        console.log('Notification received:', notification);
+        // Sanitized logging - only log notification type, not sensitive payload
+        console.log('Notification received:', {
+          type: notification.request.content.data?.type,
+          timestamp: new Date().toISOString()
+        });
         const payload = notification.request.content.data as NotificationPayload;
         this.handleNotification(payload);
       }
@@ -125,7 +129,11 @@ class NotificationService {
     // Listener for when user interacts with notification
     this.responseListener = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        console.log('Notification response:', response);
+        // Sanitized logging - only log notification type, not sensitive payload
+        console.log('Notification response:', {
+          type: response.notification.request.content.data?.type,
+          timestamp: new Date().toISOString()
+        });
         const payload = response.notification.request.content.data as NotificationPayload;
         this.handleNotificationResponse(payload);
       }

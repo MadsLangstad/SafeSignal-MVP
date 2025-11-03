@@ -227,7 +227,13 @@ For development/testing:
 
 ## Notes
 
-- Authentication uses simplified token-based auth for MVP (not production-ready JWT)
+**⚠️ SECURITY STATUS (Post-Audit 2025-11-03)**:
+- ✅ **Authentication**: JWT-based auth with BCrypt password hashing (IMPLEMENTED)
+- ⚠️ **Missing Critical Items**: Login brute force protection, audit logging, token blacklist
+- ✅ **Password Hashing**: BCrypt implemented (not SHA256)
+- ⚠️ **All Clear Endpoints**: Two-person approval NOT YET IMPLEMENTED (Phase 2)
+
+**General Notes**:
 - All timestamps are in UTC
-- Password hashing uses SHA256 (simplified for MVP, use BCrypt/Argon2 in production)
 - HTTPS redirect warning in development can be ignored (local dev environment)
+- See `claudedocs/REVISED_ROADMAP.md` for production hardening plan

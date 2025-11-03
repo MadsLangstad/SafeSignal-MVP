@@ -12,17 +12,23 @@ public class AuthController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
     private readonly IJwtTokenService _jwtTokenService;
+    private readonly ILoginAttemptService _loginAttemptService;
+    private readonly IAuditService _auditService;
     private readonly ILogger<AuthController> _logger;
     private readonly IConfiguration _configuration;
 
     public AuthController(
         IUserRepository userRepository,
         IJwtTokenService jwtTokenService,
+        ILoginAttemptService loginAttemptService,
+        IAuditService auditService,
         ILogger<AuthController> logger,
         IConfiguration configuration)
     {
         _userRepository = userRepository;
         _jwtTokenService = jwtTokenService;
+        _loginAttemptService = loginAttemptService;
+        _auditService = auditService;
         _logger = logger;
         _configuration = configuration;
     }
@@ -30,11 +36,48 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
+        // Check if account is locked due to too many failed attempts
+        if (await _loginAttemptService.IsAccountLockedAsync(request.Email))
+        {
+            var remainingSeconds = await _loginAttemptService.GetLockoutRemainingSecondsAsync(request.Email);
+            var remainingMinutes = Math.Ceiling(remainingSeconds / 60.0);
+
+            _logger.LogWarning(
+                "Login attempt blocked - account locked: Email={Email}, RemainingMinutes={RemainingMinutes}",
+                request.Email, remainingMinutes);
+
+            return StatusCode(429, new
+            {
+                error = "Account temporarily locked due to too many failed login attempts",
+                retryAfterSeconds = remainingSeconds,
+                message = $"Please try again in {remainingMinutes} minute(s)"
+            });
+        }
+
         var user = await _userRepository.GetByEmailAsync(request.Email);
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
 
         if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
         {
-            _logger.LogWarning("Failed login attempt for email: {Email}", request.Email);
+            // Record failed attempt
+            await _loginAttemptService.RecordFailedAttemptAsync(request.Email, ipAddress ?? "unknown");
+
+            // Audit failed login
+            await _auditService.LogAuthenticationAsync(
+                action: "LoginFailed",
+                userId: user?.Id,
+                userEmail: request.Email,
+                success: false,
+                ipAddress: ipAddress,
+                userAgent: userAgent,
+                errorMessage: "Invalid credentials");
+
+            var failedAttempts = await _loginAttemptService.GetFailedAttemptsCountAsync(request.Email);
+            _logger.LogWarning(
+                "Failed login attempt ({AttemptCount} total): Email={Email}, IP={IpAddress}",
+                failedAttempts, request.Email, ipAddress);
+
             return Unauthorized(new { error = "Invalid credentials" });
         }
 
@@ -43,6 +86,9 @@ public class AuthController : ControllerBase
             _logger.LogWarning("Login attempt for inactive user: {Email}", request.Email);
             return Unauthorized(new { error = "Account is not active" });
         }
+
+        // Reset failed login attempts on successful authentication
+        await _loginAttemptService.ResetFailedAttemptsAsync(request.Email);
 
         // Update last login
         user.LastLoginAt = DateTime.UtcNow;
@@ -79,6 +125,15 @@ public class AuthController : ControllerBase
         // Calculate access token expiry
         var accessTokenExpiryMinutes = int.Parse(jwtSettings["AccessTokenExpiryMinutes"] ?? "1440");
         var accessTokenExpiresAt = DateTime.UtcNow.AddMinutes(accessTokenExpiryMinutes);
+
+        // Audit successful login
+        await _auditService.LogAuthenticationAsync(
+            action: "LoginSuccess",
+            userId: user.Id,
+            userEmail: user.Email,
+            success: true,
+            ipAddress: ipAddress,
+            userAgent: userAgent);
 
         _logger.LogInformation("User logged in: {Email}", user.Email);
 
@@ -157,9 +212,77 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
     {
+        var userIdClaim = User.FindFirst("sub")?.Value ?? User.FindFirst("userId")?.Value;
+        var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+
         await _jwtTokenService.RevokeRefreshTokenAsync(request.RefreshToken);
+
+        // Audit logout
+        if (Guid.TryParse(userIdClaim, out var userId))
+        {
+            await _auditService.LogAuthenticationAsync(
+                action: "Logout",
+                userId: userId,
+                userEmail: userEmail,
+                success: true,
+                ipAddress: ipAddress,
+                userAgent: userAgent);
+        }
+
         _logger.LogInformation("User logged out");
         return Ok(new { message = "Logged out successfully" });
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        // Get current user ID from JWT token
+        var userIdClaim = User.FindFirst("sub")?.Value ?? User.FindFirst("userId")?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogWarning("Invalid user ID in token during password change");
+            return Unauthorized(new { error = "Invalid user ID in token" });
+        }
+
+        // Get user from database
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            _logger.LogWarning("User not found during password change: {UserId}", userId);
+            return NotFound(new { error = "User not found" });
+        }
+
+        // Verify current password
+        if (!VerifyPassword(request.CurrentPassword, user.PasswordHash))
+        {
+            _logger.LogWarning("Incorrect current password during password change: {UserId}", userId);
+            return BadRequest(new { error = "Current password is incorrect" });
+        }
+
+        // Hash new password
+        var newPasswordHash = HashPassword(request.NewPassword);
+        user.PasswordHash = newPasswordHash;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userRepository.UpdateAsync(user);
+        await _userRepository.SaveChangesAsync();
+
+        // Audit password change
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+        await _auditService.LogAuthenticationAsync(
+            action: "PasswordChanged",
+            userId: userId,
+            userEmail: user.Email,
+            success: true,
+            ipAddress: ipAddress,
+            userAgent: userAgent);
+
+        _logger.LogInformation("Password changed successfully for user: {UserId}", userId);
+        return Ok(new { message = "Password changed successfully" });
     }
 
     private static UserResponse MapToUserResponse(User user)

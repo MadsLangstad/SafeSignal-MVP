@@ -53,16 +53,32 @@ firmware/esp32-button/
 
 ## 2. Security Analysis
 
+**⚠️ SECURITY STATUS (Post-Audit 2025-11-03) - 55% Production-Ready**
+
+This is **development-grade security**. Production deployment requires Phase 1c hardening (26h).
+
 ### Current State (Development/MVP)
 
-| Component | Status | Risk Level | Notes |
-|-----------|--------|------------|-------|
-| **WiFi Credentials** | ⚠️ Hardcoded | HIGH | `WIFI_SSID`/`WIFI_PASS` in config.h |
-| **TLS Certificates** | ⚠️ Embedded | HIGH | Private keys in flash, no rotation |
-| **Secure Boot** | ❌ Disabled | CRITICAL | Unsigned firmware can be flashed |
-| **Flash Encryption** | ❌ Disabled | CRITICAL | Firmware readable via UART |
-| **Private Key Storage** | ⚠️ Flash Memory | HIGH | Should be in ATECC608A secure element |
-| **Certificate Provisioning** | ❌ Manual | MEDIUM | No per-device provisioning flow |
+| Component | Status | Risk Level | Production Requirement |
+|-----------|--------|------------|------------------------|
+| **WiFi Credentials** | ⚠️ Hardcoded | HIGH | NVS storage (Phase 1c - 4h) |
+| **TLS Certificates** | ⚠️ Embedded | HIGH | Provisioning system (Phase 1c - 8h) |
+| **Secure Boot** | ❌ Disabled | CRITICAL | Enable Secure Boot V2 (Phase 1c - 6h) |
+| **Flash Encryption** | ❌ Disabled | CRITICAL | Enable flash encryption (Phase 1c - 8h) |
+| **Private Key Storage** | ⚠️ Flash Memory | HIGH | **DEFERRED to Phase 7+** (ATECC608A) |
+| **Certificate Provisioning** | ❌ Manual | MEDIUM | Automated flow (Phase 1c) |
+
+**Phase 1c Critical Security (26h)**:
+- Credential management (NVS storage, provisioning)
+- Certificate infrastructure (rotation, per-device certs)
+- Secure Boot V2 implementation
+- Flash encryption enablement
+
+**Deferred to Phase 7+ (56-84h)**:
+- ❌ ATECC608A secure element integration (16-24h)
+- ❌ SPIFFE/SPIRE certificate rotation (40-60h)
+
+See `claudedocs/REVISED_ROADMAP.md` for complete security roadmap.
 
 ### mTLS Implementation (mqtt.c)
 

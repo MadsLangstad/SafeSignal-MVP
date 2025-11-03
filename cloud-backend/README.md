@@ -135,14 +135,33 @@ dotnet ef database update --startup-project ../Api
 - Database schema created
 - Docker infrastructure running
 - Documentation complete
-- Test suite passing
+- ⚠️ Test coverage: 2% (placeholder only)
 
-⏳ **Next Phase**
-- JWT authentication
-- Site/Building/Room APIs
-- Input validation
-- Unit tests
-- Redis caching
+⚠️ **Testing Status (Post-Audit 2025-11-03)**
+- **Test Coverage**: 2% (not 80% as claimed)
+- **Test Suite**: Placeholder only, not comprehensive
+- **Integration Tests**: Not implemented
+- **E2E Tests**: Not implemented
+
+**Testing Roadmap** (Phase 4 - 70h):
+- Unit tests for services, repositories, controllers (50h)
+- Integration tests with test database (15h)
+- E2E tests with Playwright (5h)
+- Target: ≥70% coverage minimum (80% goal)
+
+See `claudedocs/REVISED_ROADMAP.md` for production testing plan.
+
+✅ **Actually Complete**
+- JWT authentication (IMPLEMENTED)
+- Site/Building/Room APIs (IMPLEMENTED)
+- User management (IMPLEMENTED)
+- Role-based access control (IMPLEMENTED)
+
+⏳ **Remaining Gaps** (See REVISED_ROADMAP.md)
+- Phase 1a: Security hardening (29h)
+- Phase 2: All Clear endpoints (28h)
+- Phase 3: API versioning (4-8h)
+- Phase 4: Comprehensive testing (70h)
 
 ---
 

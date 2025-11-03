@@ -308,6 +308,24 @@ class Database {
     );
   }
 
+  async updatePendingActionPayload(actionId: string, payload: any): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      'UPDATE pending_actions SET payload = ? WHERE id = ?',
+      [JSON.stringify(payload), actionId]
+    );
+  }
+
+  async deleteAlert(alertId: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync(
+      'DELETE FROM alerts WHERE id = ?',
+      [alertId]
+    );
+  }
+
   async deletePendingAction(actionId: string): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 

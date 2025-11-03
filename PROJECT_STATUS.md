@@ -1,7 +1,8 @@
-# SafeSignal Project Status
+# SafeSignal Project Status (Audit-Based)
 
-**Last Updated**: 2025-11-02
-**Overall Completion**: ~45-50% (MVP → Production)
+**Last Updated**: 2025-11-03 (Post-Comprehensive Audit)
+**Overall Completion**: ~40-45% (MVP → Production)
+**Production Readiness**: ~70% (Strong MVP foundation, hardening required)
 
 ---
 
@@ -51,51 +52,77 @@
 
 ---
 
-### 2. Cloud Backend (Phase 2 - 70% Complete)
+### 2. Cloud Backend (Phase 2 - Actually 95% Feature Complete, 70% Production-Ready)
 **Location**: `/cloud-backend`
+**Audit Score**: 7/10 - Strong architecture, critical security hardening needed
 
-✅ **API Framework (.NET 9)**
-- Clean Architecture setup
-- REST API endpoints
+✅ **API Framework (.NET 9)** - COMPLETE
+- Clean 3-layer architecture (API/Core/Infrastructure)
+- REST API endpoints FUNCTIONAL
 - EF Core with PostgreSQL
 - Running on port 5118
 
-✅ **Database (PostgreSQL)**
-- Organizations/Tenants
-- Users (planned)
-- Buildings (planned)
-- Devices (planned)
-- Alert history (planned)
+✅ **Database (PostgreSQL)** - COMPLETE
+- Organizations/Tenants ✅ IMPLEMENTED
+- Users ✅ IMPLEMENTED (not "planned")
+- Buildings ✅ IMPLEMENTED (not "planned")
+- Devices ✅ IMPLEMENTED (not "planned")
+- Alert history ✅ IMPLEMENTED (not "planned")
+- Refresh tokens ✅ IMPLEMENTED
 
-✅ **Core Services**
-- Organization management
-- Multi-tenancy foundation
-- Entity Framework migrations
+✅ **Core Services** - COMPLETE
+- Organization management ✅
+- User authentication with JWT ✅ (not "no JWT yet")
+- Building/Room API ✅ WORKING
+- Device registration API ✅ WORKING
+- Alert triggering API ✅ WORKING
+- Multi-tenancy with organization isolation ✅ EXCELLENT
 
-⚠️ **Partial/Needs Work:**
-- User authentication (no JWT yet)
-- Building/Room API
-- Device registration API
-- Alert triggering API
-- gRPC services (edge ↔ cloud)
-- Redis caching
-- Kafka/Event bus
+⚠️ **What's Actually Missing** (From Audit):
+- ❌ Login brute force protection
+- ❌ Input validation on key endpoints
+- ❌ Audit logging for sensitive operations
+- ❌ Token blacklist (logout ineffective)
+- ❌ Comprehensive test coverage (2% not 80%)
+- ❌ All Clear two-person approval endpoints
+- ⚠️ Password policy weak (6 chars, needs 12+)
+- ⚠️ JWT config falls back to insecure defaults
+- ⏳ gRPC services (edge ↔ cloud) - Future
+- ⏳ Redis caching - Infrastructure ready, not configured
+- ⏳ Kafka/Event bus - Not needed for MVP
+
+**NOTE**: This was documented as "70% complete" but is actually **95% feature-complete**.
+The gap is **security hardening** (29h), **All Clear feature** (16h), and **testing** (70h).
+See `claudedocs/REVISED_ROADMAP.md` Phase 1a, Phase 2, Phase 4.
 
 ---
 
-### 3. Mobile Application (Phase 4 - 100% Complete!)
+### 3. Mobile Application (Phase 4 - 100% Features, 72% Production-Ready)
 **Location**: `/mobile`
+**Audit Score**: 7.2/10 - Excellent offline-first design, critical security fixes needed
 
-✅ **Complete React Native + Expo App**
-- ~2,800 lines of TypeScript
-- Authentication (email/password + biometric)
-- Emergency alert triggering (4 modes)
-- Building/room selection
-- Alert history with pagination
-- Offline-first SQLite database
-- Background sync (30-second interval)
-- Push notifications (code complete)
-- Settings and profile management
+✅ **Complete React Native + Expo App** - EXCELLENT
+- ~2,800 lines of TypeScript (strict mode)
+- Authentication (email/password) ✅
+- Biometric authentication ⚠️ Partially working, needs fix (3h)
+- Emergency alert triggering (4 modes) ✅
+- Building/room selection ✅
+- Alert history with pagination ✅
+- **Offline-first SQLite database** ✅ EXCELLENT (not documented before!)
+- **Background sync (30-second interval)** ✅ EXCELLENT (not documented before!)
+- Push notifications (code complete) ✅
+- Settings and profile management ✅
+
+✅ **Security Highlights** (From Audit):
+- JWT stored in expo-secure-store (iOS Keychain, Android Keystore) ✅ EXCELLENT
+- Automatic token refresh with request queuing ✅ EXCELLENT
+- Full TypeScript type safety ✅
+
+⚠️ **Critical Security Gaps** (From Audit):
+- ❌ No error boundary (app crashes on render errors) - 2h fix
+- ❌ No certificate pinning (MITM vulnerability) - 4h fix
+- ❌ No crash reporting (Sentry) - 2h fix
+- ⚠️ console.log of sensitive data - 2h cleanup
 
 ✅ **Documentation**
 - README.md
@@ -103,109 +130,167 @@
 - QUICKSTART.md
 - PUSH_NOTIFICATIONS.md
 
-✅ **Ready For**
-- Integration with cloud backend
-- Pilot deployment
-- App store submission (after dev build)
+⚠️ **Ready For** (With caveats):
+- ✅ Integration with cloud backend (API client ready)
+- ⚠️ Pilot deployment (after Phase 1b security fixes)
+- ⚠️ App store submission (needs assets + legal docs, Phase 5)
+
+**See**: Phase 1b (13h) in `claudedocs/REVISED_ROADMAP.md` for security fixes
 
 ---
 
-## ❌ What's LEFT TO BUILD
+## ⚠️ What Actually Needs Work (Audit-Based)
 
-### Priority 1: Cloud Backend Completion (Phase 2)
-**Estimated**: 3-4 weeks, 2-3 engineers
+### Priority 1: Security Hardening (Phase 1 - Weeks 1-3)
+**Estimated**: 68 hours total, 2-3 engineers in parallel
 
-**Critical Endpoints Needed:**
+**Backend Security (29h)**:
+- Login brute force protection (4h)
+- Password complexity requirements (1h)
+- JWT configuration fix (1h)
+- Input validation with FluentValidation (6h)
+- Audit logging infrastructure (8h)
+- Token blacklist for logout (6h)
+- Environment-specific configuration (3h)
 
+**Mobile Security (13h)**:
+- Error boundary component (2h)
+- Certificate pinning (4h)
+- Crash reporting (Sentry) (2h)
+- Fix biometric login (3h)
+- Logging hygiene cleanup (2h)
+
+**Firmware Security (26h)**:
+- Replace hardcoded WiFi credentials (8h)
+- Provision real certificates (4h)
+- Enable ESP32 secure boot V2 (6h)
+- Enable flash encryption (8h)
+
+**See**: `claudedocs/REVISED_ROADMAP.md` Phase 1 for detailed implementation
+
+---
+
+### Priority 2: All Clear Safety Feature (Phase 2 - Weeks 3-4)
+**Estimated**: 28 hours, backend + mobile engineer
+
+**Backend Implementation (16h)**:
 ```csharp
-// Authentication
-POST /api/auth/login
-POST /api/auth/refresh
-POST /api/auth/logout
-
-// Buildings & Topology
-GET /api/buildings
-GET /api/buildings/{id}
-POST /api/buildings
-PUT /api/buildings/{id}
-
-// Rooms
-GET /api/buildings/{buildingId}/rooms
-POST /api/buildings/{buildingId}/rooms
-
-// Alerts
-POST /api/alerts/trigger
-GET /api/alerts
-GET /api/alerts/{id}
-POST /api/alerts/{id}/acknowledge
-
-// Devices
-POST /api/devices/register
-PUT /api/devices/{id}/push-token
-GET /api/devices
-
-// Users
-GET /api/users/me
-PUT /api/users/me
+// NEW endpoints needed:
+POST /api/alerts/{id}/all-clear/initiate
+POST /api/alerts/{id}/all-clear/approve
+GET /api/alerts/{id}/all-clear/status
+DELETE /api/alerts/{id}/all-clear/cancel
 ```
+- Database schema for dual approval (2h)
+- AllClearService business logic (6h)
+- Controller endpoints (4h)
+- Unit tests (4h)
 
-**Infrastructure:**
-- Redis for caching/deduplication
-- Kafka or Azure Service Bus for events
-- gRPC services for edge communication
-- JWT authentication
-- Role-based authorization
+**Mobile UI (12h)**:
+- AllClearInitiateScreen (4h)
+- AllClearApproveScreen (4h)
+- Push notifications integration (2h)
+- Navigation + tests (2h)
 
----
-
-### Priority 2: Edge-Cloud Integration (Phase 3)
-**Estimated**: 2-3 weeks, 1-2 engineers
-
-**Deliverables:**
-- gRPC bidirectional streaming (edge ↔ cloud)
-- Configuration sync (cloud → edge)
-- Telemetry upload (edge → cloud)
-- Alert escalation (edge → cloud → mobile)
-- Network resilience (offline operation)
-
-**Technical Work:**
-- Protocol buffer definitions
-- gRPC client in Policy Service
-- gRPC server in Cloud API
-- Kafka event publishing
-- Conflict resolution logic
+**See**: `claudedocs/REVISED_ROADMAP.md` Phase 2
 
 ---
 
-### Priority 3: ESP32 Firmware (Phase 1)
-**Estimated**: 4-6 weeks, 1-2 embedded engineers
+### Priority 3: Testing Infrastructure (Phase 4 - Weeks 5-6)
+**Estimated**: 70 hours, 1-2 QA + 1 backend engineer
 
-**Deliverables:**
-- ESP32-S3 firmware with MQTT client
-- ATECC608A secure element integration
-- mTLS authentication
-- Button press handling
-- OTA update mechanism
-- Battery optimization (>1 year target)
+**Reality Check** (From Audit):
+- **Claimed**: "≥80% test coverage"
+- **Actual**: 2% (empty placeholder test)
+- **Gap**: 60-80 hours
 
-**Hardware:**
-- Order ESP32-S3 dev boards
-- Order ATECC608A chips
-- Design PCB (optional for MVP)
-- 10-20 prototype units
+**Backend Unit Tests (30h)**:
+- Target: ≥70% coverage (realistic)
+- AllClearService tests
+- AlertService tests
+- Controller tests
+- Test infrastructure (factories, mocks)
+
+**Integration Tests (16h)**:
+- End-to-end alert flow
+- All Clear workflow
+- Multi-tenant isolation
+
+**E2E Tests (16h)**:
+- Playwright for critical user journeys
+- Accessibility validation
+
+**HIL Tests (8h)**:
+- Basic hardware-in-loop suite
+- Button press → alert delivery
+
+**See**: `claudedocs/REVISED_ROADMAP.md` Phase 4
 
 ---
 
-### Priority 4: Production Security (Phase 5)
-**Estimated**: 6-8 weeks, 1 security engineer
+### Priority 4: API Documentation Alignment (Phase 3 - Week 4)
+**Estimated**: 4-8 hours, 1 engineer
 
-**Major Components:**
-- SPIFFE/SPIRE deployment
-- Vault with HSM backend
-- Automated certificate rotation (24h TTL)
-- Audit logging (WORM storage)
-- Security scanning (SAST/DAST)
-- Penetration testing
+**Current Issue**:
+- Docs show: `/api/v1/alerts`
+- Reality: `/api/alerts`
+
+**Options**:
+- A) Implement API versioning (4-6h)
+- B) Update docs to match reality (2h) ← RECOMMENDED FOR MVP
+
+**See**: `claudedocs/REVISED_ROADMAP.md` Phase 3
+
+---
+
+### DEFERRED to Post-MVP (Not Critical for Initial Deployment):
+
+**Advanced Firmware Features** (Defer to Phase 7+):
+- ❌ ATECC608A hardware crypto (16-24h) - Complex dependency
+- ❌ SPIFFE/SPIRE cert rotation (40-60h) - Advanced feature
+- ❌ OTA firmware updates (12-16h) - Manual flashing acceptable
+
+**Infrastructure** (Not MVP-blocking):
+- ⏳ Redis caching - Infrastructure ready, configure when needed
+- ⏳ Kafka/Event bus - Not needed for MVP scale
+- ⏳ gRPC edge↔cloud - Future phase for hybrid deployment
+
+---
+
+### REMOVED Priority 2: Edge-Cloud Integration
+**Status**: ⏳ DEFERRED to future phase
+
+**Rationale**: Edge infrastructure is already complete and working. gRPC integration is not needed for initial cloud+mobile deployment. Can deploy cloud backend independently and connect edge later when needed for hybrid deployments.
+
+---
+
+### REMOVED Priority 3: ESP32 Firmware (Most Complete Than Expected)
+**Status**: ✅ 80% FUNCTIONALLY COMPLETE (firmware exists!)
+
+**What's Already Done** (From Audit):
+- ✅ ESP32-S3 firmware with MQTT client EXISTS
+- ✅ mTLS authentication CONFIGURED
+- ✅ Button press handling PRODUCTION-GRADE
+- ✅ Alert persistence with NVS queue EXCELLENT
+- ✅ Watchdog timers PRODUCTION-READY
+- ✅ Time synchronization WORKING
+
+**What's Actually Missing**:
+- 🔴 Replace hardcoded credentials (Phase 1c - 8h)
+- 🔴 Provision real certificates (Phase 1c - 4h)
+- 🔴 Enable secure boot (Phase 1c - 6h)
+- 🔴 Enable flash encryption (Phase 1c - 8h)
+- ⏳ ATECC608A integration (defer to Phase 7+)
+- ⏳ OTA updates (defer to Phase 7+)
+
+**Total**: 26 hours to make firmware production-safe (NOT 4-6 weeks!)
+
+---
+
+### REMOVED Priority 4: Production Security (Already in Priority 1)
+**Status**: ✅ Integrated into Phase 1 Security Hardening
+
+**Rationale**: Security hardening is Priority 1 (68h over weeks 1-3), not a separate 6-8 week phase. SPIFFE/SPIRE and Vault are deferred to post-MVP as they're advanced features not critical for initial deployment.
 
 ---
 
@@ -417,19 +502,30 @@ ESP32 Button (simulated) → MQTT → EMQX → Policy Service → PA Service
 
 ---
 
-## 🎯 Summary
+## 🎯 Honest Summary (Post-Audit)
 
-**What's Done (45-50%)**:
+**What's Actually Done**:
 - ✅ Edge infrastructure (100%)
-- ✅ Mobile application (100%)
-- ⚠️ Cloud backend (70%)
+- ✅ Cloud backend APIs (95% feature-complete, 70% production-ready)
+- ✅ Mobile application (100% features, 72% production-ready)
+- ✅ ESP32 firmware (80% functional, 55% production-ready)
 
-**Critical Path to Pilot**:
-1. Complete cloud backend APIs (1-2 weeks)
-2. Integrate mobile ↔ cloud (3-5 days)
-3. Build ESP32 firmware (3-4 weeks, can parallel)
-4. Deploy and test (1 week)
+**What Was Overstated**:
+- ❌ Cloud backend was documented as "70% complete" → Actually 95% feature-complete!
+- ❌ Test coverage was claimed "≥80%" → Actually 2%
+- ❌ All Clear feature documented as complete → Not implemented
+- ❌ Firmware security documented as complete → Development-grade only
 
-**Total to Pilot**: 6-8 weeks with focused effort
+**Critical Path to Production** (Audit-Based):
+1. **Week 0**: Documentation alignment (8-10h) ✅ IN PROGRESS
+2. **Weeks 1-3**: Security hardening (68h - backend, mobile, firmware)
+3. **Weeks 3-4**: All Clear feature (28h)
+4. **Week 4**: API docs alignment (4-8h)
+5. **Weeks 5-6**: Testing infrastructure (70h)
+6. **Weeks 6-8**: Production deployment (30h)
 
-**You're closer than you think!** The hard parts (edge, mobile) are done. Now connect the pieces. 🚀
+**Total to Production**: **6-8 weeks** with 2-3 engineers (208-218 hours)
+
+**Honest Assessment**: You have a **well-engineered MVP foundation** (70% production-ready), not 90% complete. The architecture is solid, but security hardening, All Clear feature, and testing are needed.
+
+**See**: `claudedocs/REVISED_ROADMAP.md` for detailed execution plan
