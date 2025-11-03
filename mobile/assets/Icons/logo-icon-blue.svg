@@ -1,0 +1,33 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield Background -->
+  <path 
+    d="M60 10 L95 25 L95 55 C95 75 85 92 60 105 C35 92 25 75 25 55 L25 25 Z" 
+    fill="#2563eb"
+    opacity="0.1"
+  />
+  
+  <!-- Shield Outline -->
+  <path 
+    d="M60 10 L95 25 L95 55 C95 75 85 92 60 105 C35 92 25 75 25 55 L25 25 Z" 
+    stroke="#2563eb"
+    stroke-width="3"
+    fill="none"
+  />
+  
+  <!-- Signal Waves - Inner -->
+  <path 
+    d="M60 45 L60 75 M50 52 L50 68 M70 52 L70 68" 
+    stroke="#2563eb"
+    stroke-width="4"
+    stroke-linecap="round"
+  />
+  
+  <!-- Signal Waves - Outer -->
+  <path 
+    d="M40 57 L40 63 M80 57 L80 63" 
+    stroke="#2563eb"
+    stroke-width="3.5"
+    stroke-linecap="round"
+    opacity="0.7"
+  />
+</svg>

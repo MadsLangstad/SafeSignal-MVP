@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using SafeSignal.Cloud.Api.DTOs;
 using SafeSignal.Cloud.Core.Entities;
 using SafeSignal.Cloud.Core.Interfaces;
@@ -6,7 +7,8 @@ using SafeSignal.Cloud.Core.Interfaces;
 namespace SafeSignal.Cloud.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/[controller]")]
+[Authorize]
 public class OrganizationsController : ControllerBase
 {
     private readonly IOrganizationRepository _organizationRepository;

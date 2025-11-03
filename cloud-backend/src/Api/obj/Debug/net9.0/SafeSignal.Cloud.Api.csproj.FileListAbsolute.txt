@@ -143,3 +143,11 @@
 /Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/tr/Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 /Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/zh-Hans/Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 /Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/zh-Hant/Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/SafeSignal.Cloud.Api.xml
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/BCrypt.Net-Next.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/FluentValidation.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/FluentValidation.AspNetCore.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/FluentValidation.DependencyInjectionExtensions.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/obj/Debug/net9.0/SafeSignal.Cloud.Api.xml
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/AspNetCoreRateLimit.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/src/Api/bin/Debug/net9.0/Newtonsoft.Json.dll

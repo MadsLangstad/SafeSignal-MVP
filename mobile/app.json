@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "SafeSignal",
+    "slug": "safesignal-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "safesignal",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#DC143C"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.safesignal.mobile",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "SafeSignal uses Face ID to securely authenticate and unlock the app.",
+        "NSCameraUsageDescription": "SafeSignal requires camera access for Face ID authentication.",
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.safesignal.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#DC143C"
+      },
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ],
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "notification": {
+      "color": "#DC143C",
+      "iosDisplayInForeground": true,
+      "androidMode": "default",
+      "androidCollapsedTitle": "SafeSignal Alert"
+    },
+    "plugins": [
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow SafeSignal to use Face ID for secure authentication"
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://10.57.74.59:5118",
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

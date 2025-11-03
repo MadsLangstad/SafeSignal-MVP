@@ -128,3 +128,9 @@
 /Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/obj/Debug/net9.0/SafeSignal.Cloud.Tests.pdb
 /Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/obj/Debug/net9.0/SafeSignal.Cloud.Tests.genruntimeconfig.cache
 /Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/obj/Debug/net9.0/ref/SafeSignal.Cloud.Tests.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/bin/Debug/net9.0/AspNetCoreRateLimit.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/bin/Debug/net9.0/BCrypt.Net-Next.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/bin/Debug/net9.0/FluentValidation.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/bin/Debug/net9.0/FluentValidation.AspNetCore.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/bin/Debug/net9.0/FluentValidation.DependencyInjectionExtensions.dll
+/Users/mads/dev/repos/collab/safeSignal/safeSignal-mvp/cloud-backend/tests/bin/Debug/net9.0/SafeSignal.Cloud.Api.xml

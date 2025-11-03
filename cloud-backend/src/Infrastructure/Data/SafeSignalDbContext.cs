@@ -20,6 +20,7 @@ public class SafeSignalDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<UserOrganization> UserOrganizations => Set<UserOrganization>();
     public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -235,6 +236,23 @@ public class SafeSignalDbContext : DbContext
             entity.Property(e => e.Resource).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Action).HasConversion<string>().HasMaxLength(50);
             entity.HasIndex(e => new { e.Role, e.Resource, e.Action }).IsUnique();
+        });
+
+        // RefreshToken
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("refresh_tokens");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(500);
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("NOW()");
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.UserId, e.ExpiresAt });
         });
     }
 }

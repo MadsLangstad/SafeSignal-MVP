@@ -1,0 +1,52 @@
+<svg width="360" height="108" viewBox="0 0 360 108" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dc2626" />
+      <stop offset="50%" stop-color="#ea580c" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Icon -->
+  <g transform="translate(12, 12)">
+    <!-- Shield Background -->
+    <path 
+      d="M42 7 L72 19 L72 47 C72 62 64 75 42 90 C20 75 12 62 12 47 L12 19 Z" 
+      fill="url(#gradient-primary)"
+      opacity="0.1"
+    />
+    
+    <!-- Shield Outline -->
+    <path 
+      d="M42 7 L72 19 L72 47 C72 62 64 75 42 90 C20 75 12 62 12 47 L12 19 Z" 
+      stroke="url(#gradient-primary)"
+      stroke-width="3"
+      fill="none"
+    />
+    
+    <!-- Signal Waves -->
+    <path 
+      d="M42 37 L42 63 M33 43 L33 57 M51 43 L51 57" 
+      stroke="url(#gradient-primary)"
+      stroke-width="4"
+      stroke-linecap="round"
+    />
+    <path 
+      d="M24 47 L24 53 M60 47 L60 53" 
+      stroke="url(#gradient-primary)"
+      stroke-width="3.5"
+      stroke-linecap="round"
+      opacity="0.7"
+    />
+  </g>
+
+  <!-- Text -->
+  <text x="100" y="58" font-family="system-ui, -apple-system, sans-serif" font-size="38" font-weight="700" fill="#1e293b" letter-spacing="-1">
+    SafeSignal
+  </text>
+  
+  <!-- Tagline -->
+  <text x="100" y="78" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="500" fill="#1e293b" opacity="0.6" letter-spacing="1">
+    EMERGENCY NOTIFICATION SYSTEM
+  </text>
+</svg>

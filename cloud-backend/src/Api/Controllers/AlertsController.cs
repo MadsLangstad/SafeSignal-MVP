@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using SafeSignal.Cloud.Api.DTOs;
 using SafeSignal.Cloud.Core.Entities;
 using SafeSignal.Cloud.Core.Interfaces;
@@ -6,15 +7,18 @@ using SafeSignal.Cloud.Core.Interfaces;
 namespace SafeSignal.Cloud.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/[controller]")]
+[Authorize]
 public class AlertsController : ControllerBase
 {
     private readonly IAlertRepository _alertRepository;
+    private readonly IBuildingRepository _buildingRepository;
     private readonly ILogger<AlertsController> _logger;
 
-    public AlertsController(IAlertRepository alertRepository, ILogger<AlertsController> logger)
+    public AlertsController(IAlertRepository alertRepository, IBuildingRepository buildingRepository, ILogger<AlertsController> logger)
     {
         _alertRepository = alertRepository;
+        _buildingRepository = buildingRepository;
         _logger = logger;
     }
 
@@ -50,6 +54,46 @@ public class AlertsController : ControllerBase
             alert.AlertId, alert.OrganizationId);
 
         return CreatedAtAction(nameof(GetAlert), new { id = alert.Id }, MapToResponse(alert));
+    }
+
+    [HttpPost("trigger")]
+    public async Task<ActionResult<AlertResponse>> TriggerAlert([FromBody] TriggerAlertRequest request)
+    {
+        // Look up the building to get the OrganizationId from its site
+        var building = await _buildingRepository.GetByIdAsync(request.BuildingId);
+        if (building == null)
+        {
+            return NotFound(new { error = "Building not found" });
+        }
+
+        if (building.Site == null)
+        {
+            return BadRequest(new { error = "Building has no associated site" });
+        }
+
+        var alert = new Alert
+        {
+            Id = Guid.NewGuid(),
+            AlertId = Guid.NewGuid().ToString(),
+            OrganizationId = building.Site.OrganizationId,
+            DeviceId = request.DeviceId,
+            RoomId = request.RoomId,
+            TriggeredAt = DateTime.UtcNow,
+            Severity = AlertSeverity.High,
+            AlertType = "emergency",
+            Status = AlertStatus.New,
+            Source = AlertSource.Mobile,
+            Metadata = request.Metadata,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _alertRepository.AddAsync(alert);
+        await _alertRepository.SaveChangesAsync();
+
+        _logger.LogInformation("Alert triggered: {AlertId} for building {BuildingId} in organization {OrganizationId}",
+            alert.AlertId, building.Id, alert.OrganizationId);
+
+        return Ok(MapToResponse(alert));
     }
 
     [HttpGet]

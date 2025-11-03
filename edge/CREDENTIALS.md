@@ -90,6 +90,39 @@
   - `POST /api/clips/{clipRef}` - No auth (⚠️ ADD AUTH IN PRODUCTION)
   - `GET /metrics` - No auth
 
+#### Cloud Backend API
+- **Base URL**: http://localhost:5118
+- **API Base Path**: `/api`
+- **Authentication**: JWT Bearer tokens with refresh token rotation
+- **Swagger UI**: http://localhost:5118/swagger
+- **Test User Credentials**:
+  - **Email**: `test@example.com`
+  - **Password**: `Test1234`
+  - **Notes**: User already seeded in database. To change password, run: `node cloud-backend/generate-hash.js YourNewPassword`
+- **Key Endpoints**:
+  - `POST /api/auth/login` - Login with email/password → returns access token + refresh token
+  - `POST /api/auth/refresh` - Refresh access token using refresh token
+  - `POST /api/auth/logout` - Revoke refresh token (requires auth)
+  - `GET /api/users/me` - Get current user profile (requires auth)
+  - `GET /api/organizations` - List organizations (requires auth)
+  - `GET /api/buildings` - List buildings (requires auth)
+  - `GET /api/devices` - List devices (requires auth)
+  - `GET /api/alerts` - List alerts (requires auth)
+  - `POST /api/alerts/trigger` - Trigger new alert (requires auth)
+  - `POST /api/devices/register` - Register device (requires auth)
+- **Security Implementation**:
+  - ✅ Password hashing: BCrypt (work factor 12)
+  - ✅ JWT signing: HS256 with 512-bit secret key
+  - ✅ Access token expiry: 24 hours (1440 minutes)
+  - ✅ Refresh token expiry: 7 days with rotation
+  - ✅ Rate limiting: 5 login attempts/minute per IP
+  - ✅ Authorization: All endpoints require `[Authorize]` attribute
+  - ✅ CORS: Configured for Capacitor/Ionic mobile apps
+- **Token Usage**:
+  - Access token: Use `Authorization: Bearer {access_token}` header
+  - Refresh token: Rotates on each refresh (old token revoked)
+  - Logout: Revokes refresh token server-side
+
 ---
 
 ### Certificate-Based Authentication
@@ -159,6 +192,7 @@ for i in {1..5}; do openssl rand -base64 32; done
 | **MinIO Console** | http://localhost:9001 | `safesignal-admin` | `safesignal-dev-password-change-in-prod` | ⚠️ CHANGE IN PROD |
 | **Policy Service** | http://localhost:5100 | - | - | No auth (add API key) |
 | **PA Service** | http://localhost:5101 | - | - | No auth (add API key) |
+| **Cloud Backend API** | http://localhost:5118 | `test@example.com` | `Test1234` | JWT Bearer token + refresh |
 | **SQLite DB** | Container filesystem | - | - | `docker exec` access |
 
 ---
@@ -197,13 +231,18 @@ Before deploying to production, ensure you:
 - [ ] Implement regular backups
 - [ ] Configure read-only replicas if needed
 
-### ✅ API Security
-- [ ] Implement API key authentication
-- [ ] Add rate limiting
+### ✅ API Security (Cloud Backend)
+- [x] JWT authentication with refresh token rotation
+- [x] BCrypt password hashing (work factor 12)
+- [x] Rate limiting (5 login attempts/minute per IP)
+- [x] Authorization on all protected endpoints
+- [x] CORS configured for mobile apps
+- [ ] Increase password policy to 12+ characters with complexity
+- [ ] Implement organization data isolation (multi-tenancy)
 - [ ] Enable HTTPS/TLS for all API endpoints
-- [ ] Configure CORS policies appropriately
-- [ ] Implement request validation and sanitization
+- [ ] Add FluentValidation for all request DTOs
 - [ ] Add audit logging for sensitive operations
+- [ ] Implement role-based access control (RBAC)
 
 ### ✅ General Security
 - [ ] Never commit credentials to version control

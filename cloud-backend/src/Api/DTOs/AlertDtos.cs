@@ -18,6 +18,13 @@ public record UpdateAlertRequest(
     DateTime? ResolvedAt
 );
 
+public record TriggerAlertRequest(
+    Guid BuildingId,
+    Guid? DeviceId,
+    Guid? RoomId,
+    string? Metadata
+);
+
 public record AlertResponse(
     Guid Id,
     string AlertId,
