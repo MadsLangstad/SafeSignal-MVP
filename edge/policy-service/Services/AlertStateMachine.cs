@@ -81,7 +81,12 @@ public class AlertStateMachine
             CreatedAt = receivedAt.UtcDateTime,
             Status = "PENDING"
         };
-        await _alertRepository.InsertAlertAsync(alertRecord);
+        var insertSuccess = await _alertRepository.InsertAlertAsync(alertRecord);
+        if (!insertSuccess)
+        {
+            _logger.LogError("Failed to persist alert to database: AlertId={AlertId}", trigger.AlertId);
+            throw new InvalidOperationException($"Failed to persist alert {trigger.AlertId} to database");
+        }
 
         // State 1: Validation
         var validated = await ValidateTrigger(trigger);
@@ -124,7 +129,12 @@ public class AlertStateMachine
         }
 
         // Update alert status to completed with target room count
-        await _alertRepository.UpdateAlertStatusAsync(trigger.AlertId, "COMPLETED", processedAt: DateTime.UtcNow, targetRoomCount: targetRooms.Count);
+        var updateSuccess = await _alertRepository.UpdateAlertStatusAsync(trigger.AlertId, "COMPLETED", processedAt: DateTime.UtcNow, targetRoomCount: targetRooms.Count);
+        if (!updateSuccess)
+        {
+            _logger.LogError("Failed to update alert status to COMPLETED: AlertId={AlertId}", trigger.AlertId);
+            throw new InvalidOperationException($"Failed to update status for alert {trigger.AlertId}");
+        }
 
         // State 5: Create Alert Event
         var alertEvent = new AlertEvent

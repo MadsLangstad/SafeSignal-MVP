@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { Platform } from 'react-native';
 import { API_CONFIG, ERROR_MESSAGES } from '../constants';
 import { database } from '../database';
 import { secureStorage } from './secureStorage';
@@ -235,12 +236,18 @@ class ApiClient {
       return { success: true, data: alert };
     } catch (error) {
       if (this.isNetworkError(error)) {
-        // Queue for later sync
+        // Queue for later sync - store the local alertId so we can mark it as synced later
         await database.saveAlert(alert);
         await this.addToPendingQueue({
           id: this.generateId(),
           type: 'TRIGGER_ALERT',
-          payload: { buildingId, sourceRoomId, mode, alertId: alert.id },
+          payload: {
+            buildingId,
+            roomId: sourceRoomId,
+            mode,
+            metadata: alert.metadata,
+            localAlertId: alert.id  // Store local alert ID for marking as synced
+          },
           createdAt: new Date(),
           retryCount: 0,
         });
@@ -354,14 +361,16 @@ class ApiClient {
 
   private mapBackendStatus(status: number): AlertStatus {
     // Map backend numeric status to mobile string status
-    // Backend: 0=New, 1=Acknowledged, 2=InProgress, 3=Resolved
+    // Backend: 0=New, 1=Acknowledged, 2=Resolved, 3=Cancelled
     switch (status) {
       case 0:
         return 'TRIGGERED';
       case 1:
         return 'PENDING';
-      case 3:
+      case 2:
         return 'COMPLETED';
+      case 3:
+        return 'FAILED'; // Cancelled
       default:
         return 'TRIGGERED';
     }
@@ -369,7 +378,7 @@ class ApiClient {
 
   async acknowledgeAlert(alertId: string): Promise<ApiResponse> {
     try {
-      await this.client.post(`/api/alerts/${alertId}/acknowledge`);
+      await this.client.put(`/api/alerts/${alertId}/acknowledge`);
       return { success: true };
     } catch (error) {
       if (this.isNetworkError(error)) {
@@ -399,14 +408,17 @@ class ApiClient {
 
   async updateDevicePushToken(deviceId: string, pushToken: string): Promise<ApiResponse> {
     try {
-      await this.client.put(`/api/devices/${deviceId}/push-token`, { pushToken });
+      await this.client.post('/api/users/me/push-token', {
+        token: pushToken,
+        platform: Platform.OS  // "ios" or "android"
+      });
       return { success: true };
     } catch (error) {
       if (this.isNetworkError(error)) {
         await this.addToPendingQueue({
           id: this.generateId(),
           type: 'UPDATE_DEVICE',
-          payload: { deviceId, pushToken },
+          payload: { deviceId, pushToken, platform: Platform.OS },
           createdAt: new Date(),
           retryCount: 0,
         });
@@ -454,6 +466,21 @@ class ApiClient {
     for (const action of pendingActions) {
       try {
         await this.executePendingAction(action);
+
+        // Mark alert as synced if this is an alert-related action
+        if (action.type === 'TRIGGER_ALERT') {
+          // Use the stored localAlertId to mark the alert as synced
+          const localAlertId = action.payload.localAlertId;
+          if (localAlertId) {
+            await database.markAlertSynced(localAlertId);
+          }
+        } else if (['ACKNOWLEDGE_ALERT', 'RESOLVE_ALERT'].includes(action.type)) {
+          const alertId = action.payload.alertId;
+          if (alertId) {
+            await database.markAlertSynced(alertId);
+          }
+        }
+
         await database.deletePendingAction(action.id);
       } catch (error) {
         const newRetryCount = action.retryCount + 1;
@@ -470,16 +497,8 @@ class ApiClient {
       }
     }
 
-    // Sync unsynced alerts
-    const unsyncedAlerts = await database.getUnsyncedAlerts();
-    for (const alert of unsyncedAlerts) {
-      try {
-        await this.client.post('/api/alerts/sync', alert);
-        await database.markAlertSynced(alert.id);
-      } catch (error) {
-        console.error(`Failed to sync alert ${alert.id}`, error);
-      }
-    }
+    // Note: Unsynced alerts are already handled by the pending queue above
+    // which properly handles TRIGGER_ALERT, ACKNOWLEDGE_ALERT, and RESOLVE_ALERT actions
   }
 
   private async executePendingAction(action: PendingAction): Promise<void> {
@@ -487,21 +506,25 @@ class ApiClient {
       case 'TRIGGER_ALERT':
         await this.client.post('/api/alerts/trigger', {
           buildingId: action.payload.buildingId,
-          sourceRoomId: action.payload.sourceRoomId,
+          roomId: action.payload.roomId,
           mode: action.payload.mode,
-          clientAlertId: action.payload.alertId,
+          metadata: action.payload.metadata,
         });
         break;
 
       case 'ACKNOWLEDGE_ALERT':
-        await this.client.post(`/api/alerts/${action.payload.alertId}/acknowledge`);
+        await this.client.put(`/api/alerts/${action.payload.alertId}/acknowledge`);
+        break;
+
+      case 'RESOLVE_ALERT':
+        await this.client.put(`/api/alerts/${action.payload.alertId}/resolve`);
         break;
 
       case 'UPDATE_DEVICE':
-        await this.client.put(
-          `/api/devices/${action.payload.deviceId}/push-token`,
-          { pushToken: action.payload.pushToken }
-        );
+        await this.client.post('/api/users/me/push-token', {
+          token: action.payload.pushToken,
+          platform: action.payload.platform || Platform.OS
+        });
         break;
 
       default:
@@ -541,9 +564,18 @@ class ApiClient {
 
   private handleError(error: any): ApiResponse {
     const message = this.getErrorMessage(error);
-    console.error('API Error:', message, error);
-    console.error('Error details - URL:', error.config?.url, 'Status:', error.response?.status);
-    console.error('Full error config:', error.config);
+
+    // Log only safe, non-sensitive information
+    const safeLogData = {
+      message,
+      status: error.response?.status,
+      method: error.config?.method,
+      // Only log URL path without query parameters that might contain sensitive data
+      urlPath: error.config?.url?.split('?')[0],
+      timestamp: new Date().toISOString(),
+    };
+
+    console.error('API Error:', safeLogData);
     return { success: false, error: message };
   }
 }

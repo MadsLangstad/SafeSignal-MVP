@@ -103,7 +103,26 @@ public class MqttSubscriberService : BackgroundService
                 {
                     UseTls = true,
                     Certificates = new List<X509Certificate2> { clientCert },
-                    CertificateValidationHandler = context => true,
+                    CertificateValidationHandler = context =>
+                    {
+                        if (context.Certificate == null)
+                            return false;
+
+                        // Validate against CA certificate
+                        var chain = new X509Chain();
+                        chain.ChainPolicy.ExtraStore.Add(caCert);
+                        chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+                        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+
+                        var isValid = chain.Build(new X509Certificate2(context.Certificate));
+
+                        if (!isValid)
+                            return false;
+
+                        // Verify the root CA matches our trusted CA
+                        var chainRoot = chain.ChainElements[chain.ChainElements.Count - 1].Certificate;
+                        return chainRoot.Thumbprint.Equals(caCert.Thumbprint, StringComparison.OrdinalIgnoreCase);
+                    },
                     SslProtocol = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12
                 })
                 .WithCleanSession()

@@ -97,8 +97,23 @@ public class MqttHandlerService : BackgroundService
                     Certificates = new List<X509Certificate2> { clientCert },
                     CertificateValidationHandler = context =>
                     {
-                        // In production, implement proper certificate validation
-                        return true;
+                        if (context.Certificate == null)
+                            return false;
+
+                        // Validate against CA certificate
+                        var chain = new X509Chain();
+                        chain.ChainPolicy.ExtraStore.Add(caCert);
+                        chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+                        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+
+                        var isValid = chain.Build(new X509Certificate2(context.Certificate));
+
+                        if (!isValid)
+                            return false;
+
+                        // Verify the root CA matches our trusted CA
+                        var chainRoot = chain.ChainElements[chain.ChainElements.Count - 1].Certificate;
+                        return chainRoot.Thumbprint.Equals(caCert.Thumbprint, StringComparison.OrdinalIgnoreCase);
                     },
                     SslProtocol = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12
                 })
@@ -253,20 +268,19 @@ public class MqttHandlerService : BackgroundService
             var message = new MqttApplicationMessageBuilder()
                 .WithTopic(topic)
                 .WithPayload(payload)
-                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce) // QoS 0 for speed
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce) // QoS 1 for reliability
                 .WithRetainFlag(false)
                 .Build();
 
             await _mqttClient!.EnqueueAsync(message);
 
             _paCommandsSent++;
+            MqttMessagesTotal.WithLabels("pa_command", "sent").Inc(); // Increment by 1, not cumulative
 
             _logger.LogInformation(
                 "PA command sent: AlertId={AlertId}, Room={Room}, Topic={Topic}",
                 alertEvent.AlertId, roomId, topic);
         }
-
-        MqttMessagesTotal.WithLabels("pa_command", "sent").Inc(_paCommandsSent);
     }
 
     private Task HandlePaStatus(string topic, string payload)

@@ -311,7 +311,7 @@
                 const successRate = stats.total_alerts > 0
                     ? ((stats.total_alerts - (stats.alerts_today || 0)) / stats.total_alerts * 100).toFixed(1) + '%'
                     : '100%';
-                document.getElementById('success-rate').textContent = '99.2%'; // From metrics
+                document.getElementById('success-rate').textContent = successRate;
 
                 document.getElementById('service-status').textContent = 'Online';
                 document.getElementById('service-status').className = 'status-badge status-healthy';
