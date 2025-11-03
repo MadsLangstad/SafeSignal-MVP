@@ -63,25 +63,25 @@ export const ALERT_MODES = {
     label: 'Silent Alert',
     description: 'Notify staff without audible alarm',
     color: '#FFA500',
-    icon: 'bell-off',
+    icon: 'notifications-off',
   },
   AUDIBLE: {
     label: 'Audible Alert',
     description: 'Sound alarm in all rooms',
     color: '#FF6B6B',
-    icon: 'bell',
+    icon: 'notifications',
   },
   LOCKDOWN: {
     label: 'Lockdown',
     description: 'Initiate building lockdown',
     color: '#DC2626',
-    icon: 'lock',
+    icon: 'lock-closed',
   },
   EVACUATION: {
     label: 'Evacuation',
     description: 'Evacuate building immediately',
     color: '#8B0000',
-    icon: 'exit',
+    icon: 'exit-outline',
   },
 };
 
