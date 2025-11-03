@@ -5,9 +5,9 @@ export const API_CONFIG = {
   BASE_URL:
     Constants.expoConfig?.extra?.apiUrl ||
     (__DEV__
-      ? 'http://10.57.74.59:5118'
+      ? 'http://192.168.0.30:5118'
       : 'https://api.safesignal.io'),
-  TIMEOUT: 30000,
+  TIMEOUT: 10000, // Reduced from 30s to 10s for faster failure detection
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
 };

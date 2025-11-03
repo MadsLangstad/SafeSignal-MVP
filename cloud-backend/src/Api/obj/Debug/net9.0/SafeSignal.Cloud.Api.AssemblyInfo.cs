@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SafeSignal.Cloud.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6c3bfdc1cf55ac9003e5e124567f54e8d5507662")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7cef1f93c143a093d9154ad3f4eae0cdd61ea1ce")]
 [assembly: System.Reflection.AssemblyProductAttribute("SafeSignal.Cloud.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SafeSignal.Cloud.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -5,6 +5,7 @@ public class Alert
     public Guid Id { get; set; }
     public string AlertId { get; set; } = string.Empty;
     public Guid OrganizationId { get; set; }
+    public Guid? BuildingId { get; set; }
     public Guid? DeviceId { get; set; }
     public Guid? RoomId { get; set; }
     public DateTime TriggeredAt { get; set; }
@@ -18,6 +19,7 @@ public class Alert
 
     // Navigation properties
     public Organization Organization { get; set; } = null!;
+    public Building? Building { get; set; }
     public Device? Device { get; set; }
     public Room? Room { get; set; }
 }

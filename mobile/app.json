@@ -59,7 +59,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://10.57.74.59:5118",
+      "apiUrl": "http://192.168.0.30:5118",
       "eas": {
         "projectId": "YOUR_EAS_PROJECT_ID"
       }

@@ -22,6 +22,7 @@ public record TriggerAlertRequest(
     Guid BuildingId,
     Guid? DeviceId,
     Guid? RoomId,
+    string? Mode,
     string? Metadata
 );
 
@@ -29,6 +30,7 @@ public record AlertResponse(
     Guid Id,
     string AlertId,
     Guid OrganizationId,
+    Guid? BuildingId,
     Guid? DeviceId,
     Guid? RoomId,
     DateTime TriggeredAt,

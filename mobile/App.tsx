@@ -28,11 +28,23 @@ export default function App() {
       await database.init();
 
       console.log('Step 2: Loading user session...');
-      await loadUser();
+      // Use timeout to prevent hanging on slow operations
+      await Promise.race([
+        loadUser(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('User load timeout')), 5000)
+        )
+      ]).catch((error) => {
+        console.warn('User load timed out or failed (non-critical):', error);
+        // Continue initialization even if user load fails
+      });
 
       console.log('Step 3: Initializing notifications...');
       const deviceId = Device.modelId || 'unknown-device';
-      await notificationService.initialize(deviceId);
+      await notificationService.initialize(deviceId).catch((error) => {
+        console.warn('Notification initialization failed (non-critical):', error);
+        // Continue even if notifications fail
+      });
 
       console.log('Step 4: Setting up background sync...');
       setupBackgroundSync();
@@ -41,6 +53,7 @@ export default function App() {
       setIsInitializing(false);
     } catch (error) {
       console.error('Initialization error:', error);
+      // Always set initializing to false to show UI
       setIsInitializing(false);
     }
   };

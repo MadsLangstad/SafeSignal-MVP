@@ -48,6 +48,7 @@ interface AppState {
 
   // Actions - Alerts
   triggerAlert: (mode: AlertMode) => Promise<Alert | null>;
+  resolveAlert: (alertId: string) => Promise<boolean>;
   loadAlerts: (refresh?: boolean) => Promise<void>;
   loadMoreAlerts: () => Promise<void>;
 
@@ -91,10 +92,14 @@ export const useAppStore = create<AppState>(
           isLoading: false,
         });
 
-        // Initialize and load data
-        await database.init();
-        await get().loadBuildings();
-        await get().loadAlerts(true);
+        // Load data (database is already initialized in App.tsx)
+        // Run in background to not block login completion
+        Promise.all([
+          get().loadBuildings(),
+          get().loadAlerts(true)
+        ]).catch((error) => {
+          console.error('Data load after login failed (non-blocking):', error);
+        });
 
         return true;
       }
@@ -137,11 +142,18 @@ export const useAppStore = create<AppState>(
       const user = await authService.getCurrentUser();
 
       if (user) {
-        console.log('User session found, loading data...');
+        console.log('User session found, setting auth state...');
         set({ user, isAuthenticated: true });
-        await database.init();
-        await get().loadBuildings();
-        await get().loadAlerts();
+
+        // Load data in background without blocking initialization
+        // This prevents the app from hanging on API timeouts
+        Promise.all([
+          get().loadBuildings(),
+          get().loadAlerts()
+        ]).catch((error) => {
+          console.error('Background data load error (non-blocking):', error);
+          // Data will be loaded later when user interacts or sync runs
+        });
       } else {
         console.log('No user session found, showing login screen');
         set({ user: null, isAuthenticated: false });
@@ -213,6 +225,27 @@ export const useAppStore = create<AppState>(
     } catch (error) {
       console.error('Trigger alert error:', error);
       return null;
+    }
+  },
+
+  resolveAlert: async (alertId) => {
+    try {
+      const response = await apiClient.resolveAlert(alertId);
+
+      if (response.success) {
+        // Update local alert list
+        const { alerts } = get();
+        const updatedAlerts = alerts.map((alert) =>
+          alert.id === alertId && response.data ? response.data : alert
+        );
+        set({ alerts: updatedAlerts });
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Resolve alert error:', error);
+      return false;
     }
   },
 

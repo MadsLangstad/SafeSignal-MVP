@@ -73,7 +73,7 @@ export interface Device {
 
 export interface PendingAction {
   id: string;
-  type: 'TRIGGER_ALERT' | 'UPDATE_DEVICE' | 'ACKNOWLEDGE_ALERT';
+  type: 'TRIGGER_ALERT' | 'UPDATE_DEVICE' | 'ACKNOWLEDGE_ALERT' | 'RESOLVE_ALERT';
   payload: any;
   createdAt: Date;
   retryCount: number;

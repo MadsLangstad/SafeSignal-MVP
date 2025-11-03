@@ -25,7 +25,7 @@ export type RootStackParamList = {
     alertId: string;
     buildingName: string;
     roomName: string;
-    triggeredAt: Date;
+    triggeredAt: string; // ISO string, not Date object (for serialization)
   };
   AlertHistory: undefined;
 };

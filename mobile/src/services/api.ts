@@ -218,18 +218,21 @@ class ApiClient {
     };
 
     try {
-      const response = await this.client.post<Alert>('/api/alerts/trigger', {
+      const response = await this.client.post<any>('/api/alerts/trigger', {
         buildingId,
         roomId: sourceRoomId,
         mode,
       });
 
-      alert.id = response.data.id;
-      alert.status = response.data.status;
+      // Map backend response to mobile Alert type
+      const backendAlert = response.data;
+      alert.id = backendAlert.id;
+      alert.status = this.mapBackendStatus(backendAlert.status);
+      alert.triggeredAt = new Date(backendAlert.triggeredAt);
       alert.synced = true;
 
       await database.saveAlert(alert);
-      return { success: true, data: response.data };
+      return { success: true, data: alert };
     } catch (error) {
       if (this.isNetworkError(error)) {
         // Queue for later sync
@@ -252,6 +255,48 @@ class ApiClient {
     }
   }
 
+  async resolveAlert(alertId: string): Promise<ApiResponse<Alert>> {
+    try {
+      const response = await this.client.put<any>(`/api/alerts/${alertId}/resolve`);
+
+      // Map backend response to mobile Alert type
+      const backendAlert = response.data;
+      const alert: Alert = {
+        id: backendAlert.id,
+        tenantId: backendAlert.organizationId,
+        buildingId: backendAlert.buildingId || '',
+        sourceRoomId: backendAlert.roomId || '',
+        mode: this.mapAlertTypeToMode(backendAlert.alertType),
+        status: this.mapBackendStatus(backendAlert.status),
+        triggeredBy: backendAlert.deviceId || 'UNKNOWN',
+        triggeredAt: new Date(backendAlert.triggeredAt),
+        clearedAt: backendAlert.resolvedAt ? new Date(backendAlert.resolvedAt) : undefined,
+        metadata: backendAlert.metadata,
+        synced: true,
+      };
+
+      await database.saveAlert(alert);
+      return { success: true, data: alert };
+    } catch (error) {
+      if (this.isNetworkError(error)) {
+        // Queue for later sync
+        await this.addToPendingQueue({
+          id: this.generateId(),
+          type: 'RESOLVE_ALERT',
+          payload: { alertId },
+          createdAt: new Date(),
+          retryCount: 0,
+        });
+
+        return {
+          success: false,
+          error: ERROR_MESSAGES.NETWORK_ERROR,
+        };
+      }
+      return this.handleError(error);
+    }
+  }
+
   async getAlerts(organizationId: string, pageSize: number = 20, page: number = 1): Promise<ApiResponse<Alert[]>> {
     try {
       const response = await this.client.get<any[]>('/api/alerts', {
@@ -262,7 +307,7 @@ class ApiClient {
       const alerts: Alert[] = (response.data || []).map((backendAlert: any) => ({
         id: backendAlert.id,
         tenantId: backendAlert.organizationId,
-        buildingId: backendAlert.roomId || '',
+        buildingId: backendAlert.buildingId || '',
         sourceRoomId: backendAlert.roomId || '',
         mode: this.mapAlertTypeToMode(backendAlert.alertType),
         status: this.mapBackendStatus(backendAlert.status),

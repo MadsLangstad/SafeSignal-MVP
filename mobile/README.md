@@ -42,7 +42,7 @@ React Native + Expo mobile application for the SafeSignal emergency alert system
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server with auto IP detection (recommended)
 npm start
 
 # Run on iOS
@@ -57,15 +57,55 @@ npm run web
 
 ## Configuration
 
-### API Endpoint
+### ✨ Auto IP Detection (Recommended)
 
-Edit `src/constants/index.ts`:
+**No manual configuration needed!** The app automatically detects your local IP address on every startup.
+
+```bash
+npm start  # Automatically detects IP and updates configuration
+```
+
+This solves the common problem of IP addresses changing when you:
+- Switch WiFi networks
+- Connect/disconnect VPN
+- Move between home/office
+- Get a new DHCP lease
+
+**How it works:**
+1. Detects your current local network IP (e.g., 192.168.0.30)
+2. Updates `app.json` with `http://<your-ip>:5118`
+3. Clears Expo cache
+4. Starts the dev server
+
+**Utilities:**
+```bash
+npm run check-ip       # Check your current IP
+npm run start:manual   # Start without auto-detection
+```
+
+See `scripts/README.md` for technical details and troubleshooting.
+
+### API Endpoint (Manual Configuration)
+
+If you need to manually configure the API endpoint, edit `src/constants/index.ts`:
 
 ```typescript
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:5000', // Development
+  BASE_URL: 'http://192.168.0.30:5118', // Auto-detected development IP
   // BASE_URL: 'https://api.safesignal.io', // Production
 };
+```
+
+Or update `app.json`:
+
+```json
+{
+  "expo": {
+    "extra": {
+      "apiUrl": "http://192.168.0.30:5118"
+    }
+  }
+}
 ```
 
 ### Push Notifications

@@ -45,7 +45,7 @@ export default function AlertConfirmationScreen() {
           alertId: alert.id,
           buildingName: selectedBuilding.name,
           roomName: roomName,
-          triggeredAt: alert.triggeredAt,
+          triggeredAt: alert.triggeredAt.toISOString(), // Serialize Date to string
         });
       } else {
         Alert.alert(
@@ -64,7 +64,8 @@ export default function AlertConfirmationScreen() {
         );
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      console.error('Alert confirmation error:', error);
+      Alert.alert('Error', `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsTriggering(false);
     }
