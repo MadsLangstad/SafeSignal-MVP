@@ -9,7 +9,8 @@ services:
       - "18083:18083"    # Dashboard
     volumes:
       - ./certs:/opt/emqx/etc/certs:ro
-      - ./emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
+      # TODO: Fix ACL format for EMQX 5.x
+      # - ./emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
       - emqx-data:/opt/emqx/data
       - emqx-log:/opt/emqx/log
     environment:
@@ -211,7 +212,7 @@ services:
       - MINIO_BROWSER_REDIRECT_URL=https://localhost:9001
     command: server /data --console-address ":9001" --certs-dir /root/.minio/certs
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-kf", "https://localhost:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 3
