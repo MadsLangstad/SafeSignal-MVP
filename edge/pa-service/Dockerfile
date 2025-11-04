@@ -24,6 +24,10 @@ RUN apt-get update && \
 # Copy published application
 COPY --from=build /app/publish .
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Expose metrics and health check port
 EXPOSE 5001
 
@@ -31,4 +35,4 @@ EXPOSE 5001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:5001/health || exit 1
 
-ENTRYPOINT ["dotnet", "PaService.dll"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
