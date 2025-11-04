@@ -4,11 +4,12 @@ services:
     image: emqx/emqx:5.4.0
     container_name: safesignal-emqx
     ports:
-      - "1883:1883"      # MQTT (for testing without TLS)
-      - "8883:8883"      # MQTT over TLS
+      # REMOVED: - "1883:1883"  # SECURITY: Unauthenticated port disabled
+      - "8883:8883"      # MQTT over TLS (mTLS only)
       - "18083:18083"    # Dashboard
     volumes:
       - ./certs:/opt/emqx/etc/certs:ro
+      - ./emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
       - emqx-data:/opt/emqx/data
       - emqx-log:/opt/emqx/log
     environment:
@@ -29,9 +30,8 @@ services:
       - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__VERIFY=verify_peer
       - EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__FAIL_IF_NO_PEER_CERT=true
 
-      # MQTT TCP Listener (port 1883) - for easier testing
-      - EMQX_LISTENERS__TCP__DEFAULT__BIND=1883
-      - EMQX_LISTENERS__TCP__DEFAULT__MAX_CONNECTIONS=1024000
+      # SECURITY: TCP listener disabled (mTLS only)
+      - EMQX_LISTENERS__TCP__DEFAULT__ENABLE=false
 
       # Disable WebSocket listeners (not needed for MVP)
       - EMQX_LISTENERS__WS__DEFAULT__ENABLE=false
@@ -41,8 +41,8 @@ services:
       - EMQX_MQTT__RETAIN_AVAILABLE=false
       - EMQX_MQTT__MAX_PACKET_SIZE=256KB
 
-      # Allow anonymous (auth via mTLS cert validation)
-      - EMQX_ALLOW_ANONYMOUS=true
+      # SECURITY: Require authentication (mTLS cert validation)
+      - EMQX_ALLOW_ANONYMOUS=false
 
       # Logging
       - EMQX_LOG__CONSOLE__LEVEL=info
