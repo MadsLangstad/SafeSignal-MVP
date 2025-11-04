@@ -16,6 +16,7 @@ namespace SafeSignal.Edge.PolicyService.Services;
 public class MqttHandlerService : BackgroundService
 {
     private readonly AlertStateMachine _stateMachine;
+    private readonly RateLimitService _rateLimitService;
     private readonly ILogger<MqttHandlerService> _logger;
     private readonly IConfiguration _configuration;
     private IManagedMqttClient? _mqttClient;
@@ -38,10 +39,12 @@ public class MqttHandlerService : BackgroundService
 
     public MqttHandlerService(
         AlertStateMachine stateMachine,
+        RateLimitService rateLimitService,
         ILogger<MqttHandlerService> logger,
         IConfiguration configuration)
     {
         _stateMachine = stateMachine;
+        _rateLimitService = rateLimitService;
         _logger = logger;
         _configuration = configuration;
     }
@@ -220,8 +223,22 @@ public class MqttHandlerService : BackgroundService
 
             _logger.LogInformation(
                 "Alert trigger received: AlertId={AlertId}, Tenant={Tenant}, Building={Building}, " +
-                "SourceRoom={Room}, Origin={Origin}",
-                trigger.AlertId, trigger.TenantId, trigger.BuildingId, trigger.SourceRoomId, trigger.Origin);
+                "SourceRoom={Room}, Origin={Origin}, Device={DeviceId}",
+                trigger.AlertId, trigger.TenantId, trigger.BuildingId, trigger.SourceRoomId, trigger.Origin, trigger.DeviceId);
+
+            // Check rate limits (device + tenant)
+            if (!_rateLimitService.CheckAlert(trigger.DeviceId, trigger.TenantId))
+            {
+                _logger.LogWarning(
+                    "╔═══════════════════════════════════════════════════════════╗\n" +
+                    "║   ⚠️  RATE LIMIT EXCEEDED - ALERT BLOCKED                ║\n" +
+                    "╚═══════════════════════════════════════════════════════════╝\n" +
+                    "Alert: {AlertId}, Device: {DeviceId}, Tenant: {TenantId}",
+                    trigger.AlertId, trigger.DeviceId, trigger.TenantId);
+
+                MqttMessagesTotal.WithLabels("alert", "rate_limited").Inc();
+                return;
+            }
 
             // Process through FSM
             var alertEvent = await _stateMachine.ProcessTrigger(trigger, receivedAt);

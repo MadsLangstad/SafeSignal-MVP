@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import AlertHistoryScreen from '../screens/AlertHistoryScreen';
+import AlertClearanceScreen from '../screens/AlertClearanceScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AlertConfirmationScreen from '../screens/AlertConfirmationScreen';
 import AlertSuccessScreen from '../screens/AlertSuccessScreen';
@@ -28,6 +29,7 @@ export type RootStackParamList = {
     triggeredAt: string; // ISO string, not Date object (for serialization)
   };
   AlertHistory: undefined;
+  AlertClearance: { alertId: string; alert?: any };
 };
 
 export type MainTabParamList = {
@@ -107,6 +109,13 @@ export function RootNavigator() {
             <RootStack.Screen
               name="AlertHistory"
               component={AlertHistoryScreen}
+              options={{
+                headerShown: false as boolean,
+              }}
+            />
+            <RootStack.Screen
+              name="AlertClearance"
+              component={AlertClearanceScreen}
               options={{
                 headerShown: false as boolean,
               }}

@@ -21,6 +21,7 @@ builder.Services.AddSingleton<TopologyRepository>();
 // Add services to the container
 builder.Services.AddSingleton<DeduplicationService>();
 builder.Services.AddSingleton<AlertStateMachine>();
+builder.Services.AddSingleton<RateLimitService>();
 builder.Services.AddHostedService<MqttHandlerService>();
 
 // Add health checks
@@ -70,6 +71,32 @@ app.MapGet("/api/alerts/{alertId}", async (string alertId, AlertRepository alert
 {
     var alert = await alertRepo.GetAlertByIdAsync(alertId);
     return alert != null ? Results.Ok(alert) : Results.NotFound();
+});
+
+// Rate limit status endpoints
+app.MapGet("/api/rate-limit/device/{deviceId}", (string deviceId, RateLimitService rateLimitService) =>
+{
+    var status = rateLimitService.GetDeviceStatus(deviceId);
+    return Results.Ok(status);
+});
+
+app.MapGet("/api/rate-limit/tenant/{tenantId}", (string tenantId, RateLimitService rateLimitService) =>
+{
+    var status = rateLimitService.GetTenantStatus(tenantId);
+    return Results.Ok(status);
+});
+
+// Rate limit reset endpoints (admin only - add authentication in production)
+app.MapPost("/api/rate-limit/device/{deviceId}/reset", (string deviceId, RateLimitService rateLimitService) =>
+{
+    rateLimitService.ResetDevice(deviceId);
+    return Results.Ok(new { message = $"Rate limit reset for device: {deviceId}" });
+});
+
+app.MapPost("/api/rate-limit/tenant/{tenantId}/reset", (string tenantId, RateLimitService rateLimitService) =>
+{
+    rateLimitService.ResetTenant(tenantId);
+    return Results.Ok(new { message = $"Rate limit reset for tenant: {tenantId}" });
 });
 
 var logger = app.Logger;

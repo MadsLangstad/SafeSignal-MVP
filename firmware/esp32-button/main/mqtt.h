@@ -41,4 +41,10 @@ bool mqtt_publish_heartbeat(void);
  */
 bool mqtt_is_connected(void);
 
+/**
+ * Cleanup MQTT client and free resources
+ * Stops the client, destroys it, and frees NVS certificates if loaded
+ */
+void mqtt_cleanup(void);
+
 #endif /* SAFESIGNAL_MQTT_H */

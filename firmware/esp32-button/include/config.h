@@ -69,6 +69,18 @@ typedef enum {
 #define ALERT_TRIGGER_TIMEOUT_MS 100
 #define MQTT_PUBLISH_TIMEOUT_MS 5000
 
+/* Rate Limiting */
+/* ========================================================================== */
+
+/* Firmware-level rate limiting (DoS protection) */
+#define RATE_LIMIT_ENABLED true
+#define RATE_LIMIT_MAX_ALERTS 10           /* Max alerts in time window */
+#define RATE_LIMIT_WINDOW_SECONDS 60       /* Time window in seconds */
+#define RATE_LIMIT_COOLDOWN_SECONDS 300    /* Cooldown after exceeding limit (5 minutes) */
+
+/* Individual alert throttling (debounce for accidental presses) */
+#define ALERT_MIN_INTERVAL_MS 2000          /* Minimum 2s between alerts */
+
 /* Buffer Sizes */
 /* ========================================================================== */
 

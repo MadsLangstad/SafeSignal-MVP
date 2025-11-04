@@ -1,5 +1,6 @@
 #include "wifi.h"
 #include "config.h"
+#include "provisioning.h"
 
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -11,6 +12,10 @@
 #include "esp_log.h"
 
 static const char *TAG = "WIFI";
+
+/* WiFi credentials loaded from NVS */
+static char wifi_ssid[MAX_WIFI_SSID_LEN] = {0};
+static char wifi_password[MAX_WIFI_PASS_LEN] = {0};
 
 /* Event group for WiFi events */
 extern EventGroupHandle_t system_events;
@@ -68,9 +73,41 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+esp_err_t wifi_load_credentials(void)
+{
+    esp_err_t ret;
+
+    ESP_LOGI(TAG, "[WIFI] Loading credentials from NVS...");
+
+    /* Load WiFi credentials from NVS */
+    ret = provision_get_string(PROVISION_KEY_WIFI_SSID, wifi_ssid, MAX_WIFI_SSID_LEN);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "[WIFI] Failed to load SSID from NVS: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = provision_get_string(PROVISION_KEY_WIFI_PASS, wifi_password, MAX_WIFI_PASS_LEN);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "[WIFI] Failed to load password from NVS: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "[WIFI] Credentials loaded: SSID='%s'", wifi_ssid);
+
+    return ESP_OK;
+}
+
 void wifi_init(void)
 {
     ESP_LOGI(TAG, "[WIFI] Initializing...");
+
+    /* Load WiFi credentials from NVS */
+    esp_err_t ret = wifi_load_credentials();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "[WIFI] Device not provisioned! Cannot connect to WiFi.");
+        ESP_LOGE(TAG, "[WIFI] Please provision device with credentials.");
+        return;
+    }
 
     /* Initialize TCP/IP stack */
     ESP_ERROR_CHECK(esp_netif_init());
@@ -99,11 +136,9 @@ void wifi_init(void)
         NULL
     ));
 
-    /* Configure WiFi */
+    /* Configure WiFi with credentials from NVS */
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = WIFI_SSID,
-            .password = WIFI_PASS,
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
             .pmf_cfg = {
                 .capable = true,
@@ -112,11 +147,15 @@ void wifi_init(void)
         },
     };
 
+    /* Copy credentials into WiFi config */
+    strncpy((char *)wifi_config.sta.ssid, wifi_ssid, sizeof(wifi_config.sta.ssid));
+    strncpy((char *)wifi_config.sta.password, wifi_password, sizeof(wifi_config.sta.password));
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "[WIFI] Connecting to '%s'...", WIFI_SSID);
+    ESP_LOGI(TAG, "[WIFI] Connecting to '%s'...", wifi_ssid);
 }
 
 bool wifi_is_connected(void)

@@ -2,6 +2,8 @@
 #include "config.h"
 #include "wifi.h"
 #include "alert_queue.h"
+#include "provisioning.h"
+#include "runtime_config.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -22,7 +24,11 @@ extern const int MQTT_CONNECTED_BIT;
 static esp_mqtt_client_handle_t client = NULL;
 static bool connected = false;
 
-/* Embedded certificates (defined in component.mk) */
+/* Certificate storage (loaded from NVS or fallback to embedded) */
+static device_certs_t nvs_certs = {0};
+static bool certs_from_nvs = false;
+
+/* Embedded certificates (fallback if NVS not provisioned) */
 extern const uint8_t ca_cert_start[] asm("_binary_ca_crt_start");
 extern const uint8_t ca_cert_end[] asm("_binary_ca_crt_end");
 extern const uint8_t client_cert_start[] asm("_binary_client_crt_start");
@@ -85,14 +91,32 @@ void mqtt_init(void)
     /* Wait for WiFi connection */
     xEventGroupWaitBits(system_events, WIFI_CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
+    /* Try to load certificates from NVS */
+    esp_err_t err = provision_load_certificates(&nvs_certs);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "[MQTT] Using certificates from NVS (provisioned)");
+        certs_from_nvs = true;
+    } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGW(TAG, "[MQTT] Certificates not found in NVS, using embedded fallback");
+        ESP_LOGW(TAG, "[MQTT] Note: Provision certificates for production deployment");
+        certs_from_nvs = false;
+    } else {
+        ESP_LOGE(TAG, "[MQTT] Failed to load certificates from NVS: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "[MQTT] Falling back to embedded certificates");
+        certs_from_nvs = false;
+    }
+
     /* MQTT configuration with mTLS */
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = MQTT_BROKER_URI,
-        .broker.verification.certificate = (const char *)ca_cert_start,
+        .broker.verification.certificate = certs_from_nvs ?
+            nvs_certs.ca_cert : (const char *)ca_cert_start,
         .credentials = {
             .authentication = {
-                .certificate = (const char *)client_cert_start,
-                .key = (const char *)client_key_start,
+                .certificate = certs_from_nvs ?
+                    nvs_certs.client_cert : (const char *)client_cert_start,
+                .key = certs_from_nvs ?
+                    nvs_certs.client_key : (const char *)client_key_start,
             },
         },
         .session.keepalive = MQTT_KEEPALIVE_SECONDS,
@@ -131,10 +155,11 @@ bool mqtt_publish_alert(void)
         .mode = DEFAULT_ALERT_MODE,
     };
 
-    strncpy(queued_alert.device_id, DEVICE_ID, sizeof(queued_alert.device_id) - 1);
-    strncpy(queued_alert.tenant_id, TENANT_ID, sizeof(queued_alert.tenant_id) - 1);
-    strncpy(queued_alert.building_id, BUILDING_ID, sizeof(queued_alert.building_id) - 1);
-    strncpy(queued_alert.room_id, ROOM_ID, sizeof(queued_alert.room_id) - 1);
+    /* Use runtime config (loaded from NVS or defaults) */
+    strncpy(queued_alert.device_id, runtime_config_get_device_id(), sizeof(queued_alert.device_id) - 1);
+    strncpy(queued_alert.tenant_id, runtime_config_get_tenant_id(), sizeof(queued_alert.tenant_id) - 1);
+    strncpy(queued_alert.building_id, runtime_config_get_building_id(), sizeof(queued_alert.building_id) - 1);
+    strncpy(queued_alert.room_id, runtime_config_get_room_id(), sizeof(queued_alert.room_id) - 1);
     strncpy(queued_alert.version, SAFESIGNAL_VERSION, sizeof(queued_alert.version) - 1);
 
     /* Enqueue alert for persistence */
@@ -239,10 +264,10 @@ bool mqtt_publish_status(void)
         "\"freeHeap\":%lu,"
         "\"version\":\"%s\""
         "}",
-        DEVICE_ID,
-        TENANT_ID,
-        BUILDING_ID,
-        ROOM_ID,
+        runtime_config_get_device_id(),
+        runtime_config_get_tenant_id(),
+        runtime_config_get_building_id(),
+        runtime_config_get_room_id(),
         xTaskGetTickCount() * portTICK_PERIOD_MS,
         rssi,
         uptime,
@@ -256,7 +281,7 @@ bool mqtt_publish_status(void)
 
     char topic[TOPIC_BUFFER_SIZE];
     snprintf(topic, sizeof(topic), "safesignal/%s/%s/device/status",
-             TENANT_ID, BUILDING_ID);
+             runtime_config_get_tenant_id(), runtime_config_get_building_id());
 
     int msg_id = esp_mqtt_client_publish(client, topic, payload, len, 0, 0);
 
@@ -277,13 +302,13 @@ bool mqtt_publish_heartbeat(void)
     char payload[128];
     int len = snprintf(payload, sizeof(payload),
         "{\"deviceId\":\"%s\",\"type\":\"HEARTBEAT\",\"timestamp\":%lu}",
-        DEVICE_ID,
+        runtime_config_get_device_id(),
         xTaskGetTickCount() * portTICK_PERIOD_MS
     );
 
     char topic[TOPIC_BUFFER_SIZE];
     snprintf(topic, sizeof(topic), "safesignal/%s/%s/device/heartbeat",
-             TENANT_ID, BUILDING_ID);
+             runtime_config_get_tenant_id(), runtime_config_get_building_id());
 
     int msg_id = esp_mqtt_client_publish(client, topic, payload, len, 0, 0);
 
@@ -293,4 +318,23 @@ bool mqtt_publish_heartbeat(void)
 bool mqtt_is_connected(void)
 {
     return connected;
+}
+
+void mqtt_cleanup(void)
+{
+    /* Stop MQTT client */
+    if (client != NULL) {
+        esp_mqtt_client_stop(client);
+        esp_mqtt_client_destroy(client);
+        client = NULL;
+    }
+
+    /* Free NVS certificates if loaded */
+    if (certs_from_nvs) {
+        provision_free_certificates(&nvs_certs);
+        certs_from_nvs = false;
+        ESP_LOGI(TAG, "[MQTT] NVS certificates freed");
+    }
+
+    connected = false;
 }

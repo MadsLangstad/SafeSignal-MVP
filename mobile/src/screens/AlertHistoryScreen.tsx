@@ -10,12 +10,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAppStore } from '../store';
 import { useTheme } from '../context/ThemeContext';
 import { ALERT_MODES } from '../constants';
 import type { Alert } from '../types';
 
+type RootStackParamList = {
+  AlertClearance: { alertId: string; alert: Alert };
+  AlertHistory: undefined;
+};
+
+type AlertHistoryScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AlertHistory'>;
+
 export default function AlertHistoryScreen() {
+  const navigation = useNavigation<AlertHistoryScreenNavigationProp>();
   const { isDark } = useTheme();
   const {
     user,
@@ -55,10 +65,17 @@ export default function AlertHistoryScreen() {
   const getStatusStyle = (status: string) => {
     const darkMode = isDark;
     switch (status) {
+      case 'Resolved':
       case 'COMPLETED':
         return darkMode ? 'bg-green-900/20' : 'bg-green-50';
+      case 'PendingClearance':
+        return darkMode ? 'bg-yellow-900/20' : 'bg-yellow-50';
+      case 'New':
       case 'TRIGGERED':
         return darkMode ? 'bg-orange-900/20' : 'bg-orange-50';
+      case 'Acknowledged':
+        return darkMode ? 'bg-blue-900/20' : 'bg-blue-50';
+      case 'Cancelled':
       case 'FAILED':
         return darkMode ? 'bg-red-900/20' : 'bg-red-50';
       case 'ESCALATED':
@@ -66,6 +83,34 @@ export default function AlertHistoryScreen() {
       default:
         return darkMode ? 'bg-gray-800' : 'bg-gray-50';
     }
+  };
+
+  const getClearanceBadge = (alert: Alert) => {
+    if (alert.status === 'PendingClearance') {
+      return (
+        <View className={`flex-row items-center mt-2 px-2 py-1 rounded-full ${
+          isDark ? 'bg-yellow-900/30' : 'bg-yellow-100'
+        }`}>
+          <Ionicons name="people-outline" size={14} color="#F59E0B" />
+          <Text className="ml-1 text-xs font-semibold text-yellow-500">
+            1/2 Cleared
+          </Text>
+        </View>
+      );
+    }
+    if (alert.status === 'Resolved' && alert.fullyClearedAt) {
+      return (
+        <View className={`flex-row items-center mt-2 px-2 py-1 rounded-full ${
+          isDark ? 'bg-green-900/30' : 'bg-green-100'
+        }`}>
+          <Ionicons name="checkmark-done-outline" size={14} color="#10B981" />
+          <Text className="ml-1 text-xs font-semibold text-green-500">
+            2/2 Cleared
+          </Text>
+        </View>
+      );
+    }
+    return null;
   };
 
   const getBuildingAndRoomName = (alert: Alert) => {
@@ -81,11 +126,15 @@ export default function AlertHistoryScreen() {
   const renderAlert = ({ item }: { item: Alert }) => {
     const config = ALERT_MODES[item.mode];
     const location = getBuildingAndRoomName(item);
+    const clearanceBadge = getClearanceBadge(item);
 
     return (
-      <TouchableOpacity className={`flex-row mx-4 my-2 rounded-xl overflow-hidden shadow-sm ${
-        isDark ? 'bg-dark-surface' : 'bg-white'
-      }`}>
+      <TouchableOpacity
+        className={`flex-row mx-4 my-2 rounded-xl overflow-hidden shadow-sm ${
+          isDark ? 'bg-dark-surface' : 'bg-white'
+        }`}
+        onPress={() => navigation.navigate('AlertClearance', { alertId: item.id, alert: item })}
+      >
         <View
           className="w-1.5"
           style={{ backgroundColor: config.color }}
@@ -133,6 +182,8 @@ export default function AlertHistoryScreen() {
                 {location}
               </Text>
             </View>
+
+            {clearanceBadge}
 
             {!item.synced && (
               <View className="flex-row items-center mt-2 pt-2 border-t border-gray-700">

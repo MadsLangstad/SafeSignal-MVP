@@ -5,7 +5,7 @@ export const API_CONFIG = {
   BASE_URL:
     Constants.expoConfig?.extra?.apiUrl ||
     (__DEV__
-      ? 'http://192.168.0.30:5118'
+      ? 'http://192.168.68.108:5118'  // Updated to match Mac's current IP
       : 'https://api.safesignal.io'),
   TIMEOUT: 10000, // Reduced from 30s to 10s for faster failure detection
   RETRY_ATTEMPTS: 3,

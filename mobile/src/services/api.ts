@@ -13,6 +13,10 @@ import type {
   AlertStatus,
   Device,
   PendingAction,
+  ClearAlertRequest,
+  ClearAlertResponse,
+  AlertClearance,
+  Location,
 } from '../types';
 
 class ApiClient {
@@ -418,6 +422,55 @@ class ApiClient {
         });
         return { success: false, error: ERROR_MESSAGES.NETWORK_ERROR };
       }
+      return this.handleError(error);
+    }
+  }
+
+  async clearAlert(
+    alertId: string,
+    notes?: string,
+    location?: Location
+  ): Promise<ApiResponse<ClearAlertResponse>> {
+    try {
+      const request: ClearAlertRequest = {
+        notes,
+        location,
+      };
+
+      const response = await this.client.post<ClearAlertResponse>(
+        `/api/alerts/${alertId}/clear`,
+        request
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getAlertClearances(alertId: string): Promise<ApiResponse<AlertClearance[]>> {
+    try {
+      const response = await this.client.get<{
+        alertId: string;
+        status: string;
+        clearances: any[];
+      }>(`/api/alerts/${alertId}/clearances`);
+
+      const clearances: AlertClearance[] = response.data.clearances.map((c: any) => ({
+        id: c.id,
+        alertId: c.alertId,
+        userId: c.userId,
+        userName: c.userName,
+        userEmail: c.userEmail,
+        clearanceStep: c.clearanceStep,
+        clearedAt: new Date(c.clearedAt),
+        notes: c.notes,
+        location: c.location,
+        deviceInfo: c.deviceInfo,
+      }));
+
+      return { success: true, data: clearances };
+    } catch (error) {
       return this.handleError(error);
     }
   }

@@ -3,11 +3,11 @@
 export type AlertMode = 'SILENT' | 'AUDIBLE' | 'LOCKDOWN' | 'EVACUATION';
 
 export type AlertStatus =
-  | 'PENDING'
-  | 'TRIGGERED'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'ESCALATED';
+  | 'New'
+  | 'Acknowledged'
+  | 'PendingClearance'  // First person cleared, awaiting second verification
+  | 'Resolved'
+  | 'Cancelled';
 
 export interface User {
   id: string;
@@ -52,10 +52,60 @@ export interface Alert {
   status: AlertStatus;
   triggeredBy: string;
   triggeredAt: Date;
-  clearedAt?: Date;
+  resolvedAt?: Date;
   causalChainId?: string;
   metadata?: Record<string, any>;
   synced: boolean;
+  // Two-person clearance fields
+  firstClearanceUserId?: string;
+  firstClearanceAt?: Date;
+  secondClearanceUserId?: string;
+  secondClearanceAt?: Date;
+  fullyClearedAt?: Date;
+}
+
+export interface Location {
+  latitude: number;
+  longitude: number;
+}
+
+export interface AlertClearance {
+  id: string;
+  alertId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  clearanceStep: number; // 1 or 2
+  clearedAt: Date;
+  notes?: string;
+  location?: Location;
+  deviceInfo?: string;
+}
+
+export interface ClearAlertRequest {
+  notes?: string;
+  location?: Location;
+}
+
+export interface ClearAlertResponse {
+  alertId: string;
+  status: string;
+  message: string;
+  clearanceStep: number;
+  clearanceId: string;
+  clearedBy: string;
+  clearedAt: Date;
+  requiresSecondClearance: boolean;
+  firstClearance?: {
+    userId: string;
+    userName: string;
+    clearedAt: Date;
+  };
+  secondClearance?: {
+    userId: string;
+    userName: string;
+    clearedAt: Date;
+  };
 }
 
 export interface Device {

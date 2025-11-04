@@ -30,6 +30,10 @@
 #include "esp_log.h"
 #include "esp_event.h"
 #include "nvs_flash.h"
+#include "esp_console.h"
+#include "esp_vfs_dev.h"
+#include "driver/uart.h"
+#include "linenoise/linenoise.h"
 
 #include "driver/gpio.h"
 
@@ -40,6 +44,10 @@
 #include "alert_queue.h"
 #include "watchdog.h"
 #include "time_sync.h"
+#include "provisioning.h"
+#include "cmd_provision.h"
+#include "rate_limit.h"
+#include "runtime_config.h"
 
 static const char *TAG = "MAIN";
 
@@ -53,7 +61,9 @@ static EventGroupHandle_t system_events;
 /* Forward declarations */
 static void button_task(void *pvParameters);
 static void status_task(void *pvParameters);
+static void console_task(void *pvParameters);
 static void setup_gpio(void);
+static void setup_console(void);
 
 /**
  * Application entry point
@@ -76,6 +86,37 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    /* Initialize provisioning system */
+    ESP_ERROR_CHECK(provision_init());
+
+    /* Check provisioning status */
+    if (!provision_is_provisioned()) {
+        ESP_LOGW(TAG, "");
+        ESP_LOGW(TAG, "╔═══════════════════════════════════════════════════════════╗");
+        ESP_LOGW(TAG, "║   DEVICE NOT PROVISIONED                                  ║");
+        ESP_LOGW(TAG, "╚═══════════════════════════════════════════════════════════╝");
+        ESP_LOGW(TAG, "");
+        ESP_LOGW(TAG, "Device requires provisioning. Use one of:");
+        ESP_LOGW(TAG, "  1. Serial console commands (provision_set_wifi, etc.)");
+        ESP_LOGW(TAG, "  2. Python provisioning tool: scripts/provision_device.py");
+        ESP_LOGW(TAG, "");
+        ESP_LOGW(TAG, "Starting console for manual provisioning...");
+        ESP_LOGW(TAG, "");
+
+        /* Initialize console for provisioning */
+        setup_console();
+
+        /* Console runs in background, but warn that normal operation won't start */
+        ESP_LOGW(TAG, "Note: Normal device operation disabled until provisioned");
+        ESP_LOGW(TAG, "Use 'provision_status' to check, 'provision_complete' when done");
+        return;
+    }
+
+    ESP_LOGI(TAG, "[PROVISION] Device is provisioned ✓");
+
+    /* Load runtime configuration from NVS */
+    runtime_config_load();  /* Logs result, fallback to defaults if not found */
+
     /* Initialize event loop */
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
@@ -90,6 +131,9 @@ void app_main(void)
 
     /* Initialize watchdog */
     ESP_ERROR_CHECK(watchdog_init());
+
+    /* Initialize rate limiting */
+    ESP_ERROR_CHECK(rate_limit_init());
 
     /* Initialize WiFi */
     wifi_init();
@@ -176,6 +220,29 @@ static void button_task(void *pvParameters)
             ESP_LOGW(TAG, "");
             ESP_LOGW(TAG, "[BUTTON] *** PANIC BUTTON PRESSED ***");
 
+            /* Check minimum interval (prevents accidental double-presses) */
+            if (!rate_limit_check_min_interval()) {
+                ESP_LOGW(TAG, "[RATE_LIMIT] Alert throttled (too soon after last press)");
+                ESP_LOGW(TAG, "");
+                continue;
+            }
+
+            /* Check rate limit (prevents DoS attacks) */
+            if (!rate_limit_check_alert()) {
+                ESP_LOGW(TAG, "[RATE_LIMIT] Alert blocked (rate limit exceeded)");
+
+                /* Visual feedback: rapid red blink to indicate blocked */
+                for (int i = 0; i < 10; i++) {
+                    gpio_set_level(LED_PIN, LED_ACTIVE_HIGH ? 1 : 0);
+                    vTaskDelay(pdMS_TO_TICKS(50));
+                    gpio_set_level(LED_PIN, LED_ACTIVE_HIGH ? 0 : 1);
+                    vTaskDelay(pdMS_TO_TICKS(50));
+                }
+
+                ESP_LOGW(TAG, "");
+                continue;
+            }
+
             /* Blink LED rapidly */
             for (int i = 0; i < 5; i++) {
                 gpio_set_level(LED_PIN, LED_ACTIVE_HIGH ? 1 : 0);
@@ -187,6 +254,7 @@ static void button_task(void *pvParameters)
             /* Publish alert */
             if (mqtt_publish_alert()) {
                 alerts_sent++;
+                rate_limit_record_alert();  /* Record successful alert */
                 ESP_LOGI(TAG, "[ALERT] ✓ Alert sent (total: %lu)", alerts_sent);
             } else {
                 alerts_failed++;
@@ -241,5 +309,104 @@ static void status_task(void *pvParameters)
         }
 
         vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+/**
+ * Setup console for interactive provisioning
+ */
+static void setup_console(void)
+{
+    /* Disable buffering on stdin */
+    setvbuf(stdin, NULL, _IONBF, 0);
+
+    /* Minicom, screen, idf_monitor send CR+LF (\r\n) on ENTER */
+    esp_vfs_dev_uart_port_set_rx_line_endings(CONFIG_ESP_CONSOLE_UART_NUM, ESP_LINE_ENDINGS_CR);
+    /* Move cursor to beginning of line on output */
+    esp_vfs_dev_uart_port_set_tx_line_endings(CONFIG_ESP_CONSOLE_UART_NUM, ESP_LINE_ENDINGS_CRLF);
+
+    /* Configure UART. Note: Using defaults (115200, 8N1) */
+    const uart_config_t uart_config = {
+        .baud_rate = CONFIG_ESP_CONSOLE_UART_BAUDRATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    ESP_ERROR_CHECK(uart_driver_install(CONFIG_ESP_CONSOLE_UART_NUM,
+                                         256, 0, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(CONFIG_ESP_CONSOLE_UART_NUM, &uart_config));
+
+    /* Tell VFS to use UART driver */
+    esp_vfs_dev_uart_use_driver(CONFIG_ESP_CONSOLE_UART_NUM);
+
+    /* Initialize console */
+    esp_console_config_t console_config = {
+        .max_cmdline_length = 256,
+        .max_cmdline_args = 8,
+#if CONFIG_LOG_COLORS
+        .hint_color = atoi(LOG_COLOR_CYAN)
+#endif
+    };
+    ESP_ERROR_CHECK(esp_console_init(&console_config));
+
+    /* Configure linenoise line completion library */
+    linenoiseSetMultiLine(1);
+    linenoiseSetCompletionCallback(NULL);
+    linenoiseSetHintsCallback(NULL);
+    linenoiseHistorySetMaxLen(10);
+    linenoiseAllowEmpty(false);
+
+    /* Register provisioning commands */
+    register_provision_commands();
+
+    /* Create console task */
+    xTaskCreate(console_task, "console_task", 4096, NULL, 2, NULL);
+
+    ESP_LOGI(TAG, "[CONSOLE] Interactive console started");
+    printf("\n");
+    printf("SafeSignal Provisioning Console\n");
+    printf("Type 'help' for list of commands\n");
+    printf("\n");
+}
+
+/**
+ * Console task - reads and processes commands
+ */
+static void console_task(void *pvParameters)
+{
+    char *line;
+    const char *prompt = "safesignal> ";
+
+    while (1) {
+        /* Get a line using linenoise */
+        line = linenoise(prompt);
+
+        if (line == NULL) {
+            /* Empty line or Ctrl+C */
+            continue;
+        }
+
+        /* Add to history if not empty */
+        if (strlen(line) > 0) {
+            linenoiseHistoryAdd(line);
+        }
+
+        /* Try to run the command */
+        int ret;
+        esp_err_t err = esp_console_run(line, &ret);
+        if (err == ESP_ERR_NOT_FOUND) {
+            printf("Unrecognized command. Type 'help' for available commands.\n");
+        } else if (err == ESP_ERR_INVALID_ARG) {
+            /* Command was empty */
+        } else if (err == ESP_OK && ret != ESP_OK) {
+            printf("Command returned non-zero error code: 0x%x (%s)\n", ret, esp_err_to_name(ret));
+        } else if (err != ESP_OK) {
+            printf("Internal error: %s\n", esp_err_to_name(err));
+        }
+
+        /* linenoise allocates line with malloc, so need to free it */
+        linenoiseFree(line);
     }
 }

@@ -9,6 +9,10 @@ set(COMPONENT_SRCS
     "alert_queue.c"
     "watchdog.c"
     "time_sync.c"
+    "provisioning.c"
+    "cmd_provision.c"
+    "rate_limit.c"
+    "runtime_config.c"
 )
 
 # Include directories
