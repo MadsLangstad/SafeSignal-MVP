@@ -41,7 +41,7 @@ fi
 # Clean and create certs directory
 log_info "Setting up certificates directory..."
 rm -rf "$CERTS_DIR"
-mkdir -p "$CERTS_DIR"/{ca,emqx,policy-service,pa-service,devices}
+mkdir -p "$CERTS_DIR"/{ca,emqx,policy-service,pa-service,devices,minio}
 cd "$CERTS_DIR"
 
 # Generate CA private key and certificate
@@ -120,6 +120,10 @@ generate_cert "client" "pa-service" "pa-service" "client"
 log_info "Generating test device certificates..."
 generate_cert "esp32-test" "device-esp32-001" "devices" "client"
 generate_cert "app-test" "device-app-001" "devices" "client"
+
+# Generate MinIO server certificate
+log_info "Generating MinIO server certificate..."
+generate_cert "minio-server" "minio" "minio" "server"
 
 # Create combined PEM files for convenience
 log_info "Creating combined certificate files..."

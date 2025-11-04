@@ -114,7 +114,8 @@ services:
       - MinIO__AccessKey=safesignal-admin
       - MinIO__SecretKey=safesignal-dev-password-change-in-prod
       - MinIO__BucketName=safesignal-audio
-      - MinIO__UseSSL=false
+      - MinIO__UseSSL=true
+      - MinIO__ValidateCertificate=false
     depends_on:
       emqx:
         condition: service_healthy
@@ -197,15 +198,18 @@ services:
     image: quay.io/minio/minio:latest
     container_name: safesignal-minio
     ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console UI
+      - "9000:9000"  # API (HTTPS)
+      - "9001:9001"  # Console UI (HTTPS)
     volumes:
       - minio-data:/data
+      - ./certs/minio/minio-server.crt:/root/.minio/certs/public.crt:ro
+      - ./certs/minio/minio-server.key:/root/.minio/certs/private.key:ro
+      - ./certs/ca/ca.crt:/root/.minio/certs/CAs/ca.crt:ro
     environment:
       - MINIO_ROOT_USER=safesignal-admin
       - MINIO_ROOT_PASSWORD=safesignal-dev-password-change-in-prod
-      - MINIO_BROWSER_REDIRECT_URL=http://localhost:9001
-    command: server /data --console-address ":9001"
+      - MINIO_BROWSER_REDIRECT_URL=https://localhost:9001
+    command: server /data --console-address ":9001" --certs-dir /root/.minio/certs
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
