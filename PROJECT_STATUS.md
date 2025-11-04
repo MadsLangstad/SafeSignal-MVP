@@ -1,8 +1,27 @@
 # SafeSignal Project Status (Audit-Based)
 
-**Last Updated**: 2025-11-03 (Post-Comprehensive Audit)
+**Last Updated**: 2025-11-04 (Post-Documentation Gap Analysis)
 **Overall Completion**: ~40-45% (MVP → Production)
 **Production Readiness**: ~70% (Strong MVP foundation, hardening required)
+
+⚠️ **CRITICAL**: External documentation (`safeSignal-doc` repository) contains aspirational claims that exceed current implementation. See `DOCUMENTATION_GAPS.md` for detailed analysis.
+
+---
+
+## 🔴 Documentation vs Reality Alert
+
+**Status**: External documentation overstates MVP capabilities
+
+**Key Gaps Identified**:
+1. 🔴 **Security Controls** - Docs claim ATECC608A + nonce + rate limit → Reality: Timestamp only
+2. 🔴 **PA Audio System** - Docs claim TTS + hardware + feedback → Reality: Simulation only
+3. 🔴 **All Clear Workflow** - Docs claim two-person approval → Reality: Not implemented
+4. ⚠️ **Infrastructure** - Docs claim Kafka + PSAP + WORM → Reality: PostgreSQL only
+5. 🔴 **Zero-Trust** - Docs claim SPIFFE/SPIRE → Reality: Static mTLS (development)
+
+**Action Required**: See `DOCUMENTATION_GAPS.md` for comprehensive gap analysis and remediation plan.
+
+**Timeline to Close Gaps**: 6-8 weeks (150-198 hours critical items) per `claudedocs/REVISED_ROADMAP.md`
 
 ---
 
