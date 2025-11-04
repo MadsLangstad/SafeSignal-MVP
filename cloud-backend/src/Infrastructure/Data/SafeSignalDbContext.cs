@@ -23,6 +23,7 @@ public class SafeSignalDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PushToken> PushTokens => Set<PushToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AlertClearance> AlertClearances => Set<AlertClearance>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -185,9 +186,30 @@ public class SafeSignalDbContext : DbContext
                 .HasForeignKey(e => e.RoomId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            entity.HasOne(e => e.FirstClearanceUser)
+                .WithMany()
+                .HasForeignKey(e => e.FirstClearanceUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.SecondClearanceUser)
+                .WithMany()
+                .HasForeignKey(e => e.SecondClearanceUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Two-person clearance fields
+            entity.Property(e => e.FirstClearanceAt).HasColumnName("first_clearance_at");
+            entity.Property(e => e.FirstClearanceUserId).HasColumnName("first_clearance_user_id");
+            entity.Property(e => e.SecondClearanceAt).HasColumnName("second_clearance_at");
+            entity.Property(e => e.SecondClearanceUserId).HasColumnName("second_clearance_user_id");
+            entity.Property(e => e.FullyClearedAt).HasColumnName("fully_cleared_at");
+
             entity.HasIndex(e => new { e.OrganizationId, e.TriggeredAt });
             entity.HasIndex(e => e.DeviceId);
             entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.OrganizationId, e.Status })
+                .HasFilter("\"Status\" = 'PendingClearance'");
+            entity.HasIndex(e => new { e.FirstClearanceUserId, e.FirstClearanceAt })
+                .HasFilter("first_clearance_user_id IS NOT NULL");
         });
 
         // User
@@ -309,6 +331,40 @@ public class SafeSignalDbContext : DbContext
             entity.HasIndex(e => e.Timestamp);
             entity.HasIndex(e => new { e.EntityType, e.EntityId });
             entity.HasIndex(e => new { e.OrganizationId, e.Timestamp });
+        });
+
+        // AlertClearance
+        modelBuilder.Entity<AlertClearance>(entity =>
+        {
+            entity.ToTable("alert_clearances");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ClearanceStep).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.Location).HasColumnType("jsonb");
+            entity.Property(e => e.DeviceInfo).HasMaxLength(500);
+            entity.Property(e => e.ClearedAt).HasDefaultValueSql("NOW()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("NOW()");
+
+            entity.HasOne(e => e.Alert)
+                .WithMany(a => a.Clearances)
+                .HasForeignKey(e => e.AlertId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Indexes
+            entity.HasIndex(e => e.AlertId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.OrganizationId, e.ClearedAt });
+            entity.HasIndex(e => new { e.AlertId, e.ClearanceStep }).IsUnique();
         });
     }
 }

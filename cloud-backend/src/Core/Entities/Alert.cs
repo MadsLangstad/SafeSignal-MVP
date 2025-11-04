@@ -17,11 +17,21 @@ public class Alert
     public string? Metadata { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    // Two-person "All Clear" workflow fields
+    public DateTime? FirstClearanceAt { get; set; }
+    public Guid? FirstClearanceUserId { get; set; }
+    public DateTime? SecondClearanceAt { get; set; }
+    public Guid? SecondClearanceUserId { get; set; }
+    public DateTime? FullyClearedAt { get; set; }
+
     // Navigation properties
     public Organization Organization { get; set; } = null!;
     public Building? Building { get; set; }
     public Device? Device { get; set; }
     public Room? Room { get; set; }
+    public User? FirstClearanceUser { get; set; }
+    public User? SecondClearanceUser { get; set; }
+    public ICollection<AlertClearance> Clearances { get; set; } = new List<AlertClearance>();
 }
 
 public enum AlertSeverity
@@ -36,6 +46,7 @@ public enum AlertStatus
 {
     New,
     Acknowledged,
+    PendingClearance,  // First person cleared, awaiting second verification
     Resolved,
     Cancelled
 }

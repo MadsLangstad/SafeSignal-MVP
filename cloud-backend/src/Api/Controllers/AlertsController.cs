@@ -11,22 +11,31 @@ namespace SafeSignal.Cloud.Api.Controllers;
 public class AlertsController : BaseAuthenticatedController
 {
     private readonly IAlertRepository _alertRepository;
+    private readonly IAlertClearanceRepository _clearanceRepository;
     private readonly IBuildingRepository _buildingRepository;
     private readonly IDeviceRepository _deviceRepository;
     private readonly IRoomRepository _roomRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IAuditService _auditService;
     private readonly ILogger<AlertsController> _logger;
 
     public AlertsController(
         IAlertRepository alertRepository,
+        IAlertClearanceRepository clearanceRepository,
         IBuildingRepository buildingRepository,
         IDeviceRepository deviceRepository,
         IRoomRepository roomRepository,
+        IUserRepository userRepository,
+        IAuditService auditService,
         ILogger<AlertsController> logger)
     {
         _alertRepository = alertRepository;
+        _clearanceRepository = clearanceRepository;
         _buildingRepository = buildingRepository;
         _deviceRepository = deviceRepository;
         _roomRepository = roomRepository;
+        _userRepository = userRepository;
+        _auditService = auditService;
         _logger = logger;
     }
 
@@ -279,6 +288,205 @@ public class AlertsController : BaseAuthenticatedController
         _logger.LogInformation("Resolved alert {AlertId}", alert.AlertId);
 
         return Ok(MapToResponse(alert));
+    }
+
+    [HttpPost("{id:guid}/clear")]
+    public async Task<ActionResult<ClearAlertResponse>> ClearAlert(Guid id, [FromBody] ClearAlertRequest request)
+    {
+        var authenticatedUserId = GetAuthenticatedUserId();
+        var authenticatedOrgId = GetAuthenticatedOrganizationId();
+
+        // Get alert with clearances
+        var alert = await _alertRepository.GetByIdWithClearancesAsync(id);
+        if (alert == null)
+        {
+            return NotFound(new { error = "Alert not found" });
+        }
+
+        // Validate organization access
+        try
+        {
+            ValidateOrganizationAccess(alert.OrganizationId);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound();
+        }
+
+        // Get current user details
+        var currentUser = await _userRepository.GetByIdAsync(authenticatedUserId);
+        if (currentUser == null)
+        {
+            return NotFound(new { error = "User not found" });
+        }
+
+        // Check if alert is already resolved
+        if (alert.Status == AlertStatus.Resolved)
+        {
+            return BadRequest(new { error = "Alert is already fully resolved" });
+        }
+
+        // Determine clearance step
+        int clearanceStep;
+        if (alert.Status == AlertStatus.New || alert.Status == AlertStatus.Acknowledged)
+        {
+            clearanceStep = 1;
+        }
+        else if (alert.Status == AlertStatus.PendingClearance)
+        {
+            clearanceStep = 2;
+
+            // Prevent same user from clearing twice
+            if (alert.FirstClearanceUserId == authenticatedUserId)
+            {
+                return BadRequest(new { error = "Cannot provide second clearance - you already provided the first clearance" });
+            }
+        }
+        else
+        {
+            return BadRequest(new { error = $"Alert status {alert.Status} cannot be cleared" });
+        }
+
+        // Create clearance record
+        var clearance = new AlertClearance
+        {
+            Id = Guid.NewGuid(),
+            AlertId = alert.Id,
+            UserId = authenticatedUserId,
+            OrganizationId = authenticatedOrgId,
+            ClearanceStep = clearanceStep,
+            ClearedAt = DateTime.UtcNow,
+            Notes = request.Notes,
+            Location = request.Location != null
+                ? System.Text.Json.JsonSerializer.Serialize(request.Location)
+                : null,
+            DeviceInfo = Request.Headers.UserAgent.ToString(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _clearanceRepository.AddAsync(clearance);
+
+        // Update alert status and denormalized fields
+        if (clearanceStep == 1)
+        {
+            alert.Status = AlertStatus.PendingClearance;
+            alert.FirstClearanceUserId = authenticatedUserId;
+            alert.FirstClearanceAt = clearance.ClearedAt;
+        }
+        else if (clearanceStep == 2)
+        {
+            alert.Status = AlertStatus.Resolved;
+            alert.ResolvedAt = DateTime.UtcNow;
+            alert.SecondClearanceUserId = authenticatedUserId;
+            alert.SecondClearanceAt = clearance.ClearedAt;
+            alert.FullyClearedAt = DateTime.UtcNow;
+        }
+
+        await _alertRepository.UpdateAsync(alert);
+        await _alertRepository.SaveChangesAsync();
+        await _clearanceRepository.SaveChangesAsync();
+
+        // Audit log
+        await _auditService.LogAsync(new AuditLog
+        {
+            UserId = authenticatedUserId,
+            OrganizationId = authenticatedOrgId,
+            Action = $"Alert clearance step {clearanceStep}",
+            EntityType = "Alert",
+            EntityId = alert.Id,
+            Category = AuditCategory.Alert,
+            Success = true,
+            AdditionalInfo = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                AlertId = alert.AlertId,
+                ClearanceStep = clearanceStep,
+                Status = alert.Status.ToString(),
+                Notes = request.Notes
+            })
+        });
+
+        _logger.LogInformation("Alert {AlertId} cleared by user {UserId} (step {Step})",
+            alert.AlertId, authenticatedUserId, clearanceStep);
+
+        // Build response
+        ClearanceInfoDto? firstClearance = null;
+        ClearanceInfoDto? secondClearance = null;
+
+        if (alert.FirstClearanceUser != null)
+        {
+            firstClearance = new ClearanceInfoDto(
+                alert.FirstClearanceUserId!.Value,
+                $"{alert.FirstClearanceUser.FirstName} {alert.FirstClearanceUser.LastName}",
+                alert.FirstClearanceAt!.Value
+            );
+        }
+
+        if (alert.SecondClearanceUser != null)
+        {
+            secondClearance = new ClearanceInfoDto(
+                alert.SecondClearanceUserId!.Value,
+                $"{alert.SecondClearanceUser.FirstName} {alert.SecondClearanceUser.LastName}",
+                alert.SecondClearanceAt!.Value
+            );
+        }
+
+        return Ok(new ClearAlertResponse(
+            alert.Id,
+            alert.Status.ToString(),
+            clearanceStep == 1
+                ? "First clearance recorded. Awaiting second verification."
+                : "Second clearance recorded. Alert fully resolved.",
+            clearanceStep,
+            clearance.Id,
+            $"{currentUser.FirstName} {currentUser.LastName}",
+            clearance.ClearedAt,
+            clearanceStep == 1,
+            firstClearance,
+            secondClearance
+        ));
+    }
+
+    [HttpGet("{id:guid}/clearances")]
+    public async Task<ActionResult<AlertClearanceHistoryResponse>> GetClearances(Guid id)
+    {
+        var alert = await _alertRepository.GetByIdWithClearancesAsync(id);
+        if (alert == null)
+        {
+            return NotFound(new { error = "Alert not found" });
+        }
+
+        // Validate organization access
+        try
+        {
+            ValidateOrganizationAccess(alert.OrganizationId);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound();
+        }
+
+        var clearances = alert.Clearances
+            .OrderBy(c => c.ClearanceStep)
+            .Select(c => new AlertClearanceDto(
+                c.Id,
+                c.ClearanceStep,
+                c.UserId,
+                $"{c.User.FirstName} {c.User.LastName}",
+                c.User.Email,
+                c.ClearedAt,
+                c.Notes,
+                c.Location != null
+                    ? System.Text.Json.JsonSerializer.Deserialize<LocationDto>(c.Location)
+                    : null,
+                c.DeviceInfo
+            ))
+            .ToList();
+
+        return Ok(new AlertClearanceHistoryResponse(
+            alert.Id,
+            alert.Status.ToString(),
+            clearances
+        ));
     }
 
     private static AlertResponse MapToResponse(Alert alert) => new(
