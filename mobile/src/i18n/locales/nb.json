@@ -1,0 +1,205 @@
+{
+  "common": {
+    "appName": "SafeSignal",
+    "appTagline": "NØDVARSLING",
+    "cancel": "Avbryt",
+    "confirm": "Bekreft",
+    "ok": "OK",
+    "error": "Feil",
+    "success": "Suksess",
+    "loading": "Laster...",
+    "refresh": "Oppdater",
+    "save": "Lagre",
+    "delete": "Slett",
+    "edit": "Rediger",
+    "back": "Tilbake",
+    "next": "Neste",
+    "done": "Ferdig",
+    "yes": "Ja",
+    "no": "Nei"
+  },
+  "navigation": {
+    "home": "Hjem",
+    "history": "Historikk",
+    "settings": "Innstillinger",
+    "confirmEmergencyAlert": "Bekreft nødvarsel"
+  },
+  "auth": {
+    "signIn": "Logg inn",
+    "signInWithFeide": "Logg inn med Feide",
+    "signInWithBankID": "Logg inn med BankID",
+    "orContinueWithEmail": "Eller fortsett med e-post",
+    "email": "E-post",
+    "password": "Passord",
+    "logout": "Logg ut",
+    "confirmLogout": "Bekreft utlogging",
+    "confirmLogoutMessage": "Er du sikker på at du vil logge ut?",
+    "authorizedPersonnelOnly": "Kun for autorisert personell",
+    "useBiometric": "Bruk biometrisk autentisering",
+    "errors": {
+      "enterEmail": "Vennligst skriv inn e-postadressen din",
+      "validEmail": "Vennligst skriv inn en gyldig e-postadresse",
+      "enterPassword": "Vennligst skriv inn passordet ditt",
+      "passwordMinLength": "Passordet må være minst {{length}} tegn",
+      "authFailed": "Autentisering mislyktes. Vennligst prøv igjen.",
+      "feideNotConfigured": "Feide-autentisering er ikke konfigurert. Vennligst kontakt administratoren.",
+      "biometricSetupRequired": "Vennligst logg inn med e-post og passord først for å aktivere biometrisk autentisering."
+    }
+  },
+  "home": {
+    "welcomeBack": "Velkommen tilbake,",
+    "selectBuilding": "Velg bygning",
+    "selectRoom": "Velg ditt nåværende rom",
+    "noBuildingsAvailable": "Ingen bygninger tilgjengelig",
+    "emergencyAlert": "Nødvarsel",
+    "pressAndHold": "Trykk og hold for å utløse et varsel",
+    "emergency": "NØDSITUASJON",
+    "alertModes": "Varslingsmoduser",
+    "buildingRequired": "Bygning påkrevd",
+    "buildingRequiredMessage": "Vennligst velg en bygning først",
+    "roomRequired": "Rom påkrevd",
+    "roomRequiredMessage": "Vennligst velg ditt nåværende rom",
+    "systemOnline": "System tilkoblet",
+    "syncing": "Synkroniserer ({{count}} ventende)",
+    "lastSync": "Siste synkronisering: {{time}}"
+  },
+  "alertModes": {
+    "audible": {
+      "label": "Hørbar varsel",
+      "description": "Aktiver alarm i alle rom"
+    },
+    "silent": {
+      "label": "Stille varsel",
+      "description": "Varsle personale uten hørbar alarm"
+    },
+    "lockdown": {
+      "label": "Nedstenging",
+      "description": "Initier bygningsnedstengning"
+    },
+    "evacuation": {
+      "label": "Evakuering",
+      "description": "Evakuer bygningen umiddelbart"
+    }
+  },
+  "alertConfirmation": {
+    "title": "Bekreft varsel",
+    "message": "Du er i ferd med å sende et {{mode}} varsel for:",
+    "building": "Bygning",
+    "room": "Rom",
+    "typeConfirm": "Skriv BEKREFT for å fortsette",
+    "confirmText": "BEKREFT",
+    "sendAlert": "Send varsel",
+    "typingRequired": "Skriving påkrevd",
+    "typingRequiredMessage": "Vennligst skriv BEKREFT for å sende varselet"
+  },
+  "alertSuccess": {
+    "title": "Varsel sendt vellykket",
+    "message": "Nødetater har blitt varslet",
+    "alertType": "Varseltype",
+    "location": "Plassering",
+    "timestamp": "Tid",
+    "status": "Status",
+    "active": "Aktiv",
+    "responseTeamNotified": "Innsatsteam har blitt varslet og er på vei",
+    "stayCalm": "Hold deg rolig og følg sikkerhetsprosedyrer",
+    "backToHome": "Tilbake til hjem"
+  },
+  "alertHistory": {
+    "title": "Varselhistorikk",
+    "noAlerts": "Ingen tidligere varsler",
+    "noAlertsMessage": "Du har ikke sendt noen varsler ennå",
+    "sentBy": "Sendt av",
+    "at": "kl.",
+    "cleared": "Fjernet",
+    "statuses": {
+      "Resolved": "Løst",
+      "COMPLETED": "Fullført",
+      "PendingClearance": "Avventer godkjenning",
+      "New": "Ny",
+      "TRIGGERED": "Utløst",
+      "Acknowledged": "Bekreftet",
+      "Cancelled": "Kansellert",
+      "FAILED": "Mislyktes",
+      "ESCALATED": "Eskalert"
+    }
+  },
+  "alertClearance": {
+    "title": "Fjern varsel",
+    "message": "Er du sikker på at du vil fjerne dette varselet?",
+    "confirmClear": "Ja, fjern varsel",
+    "clearedSuccessfully": "Varsel fjernet vellykket",
+    "location": "Plassering",
+    "sentAt": "Sendt",
+    "clearanceReason": "Årsak til fjerning (valgfritt)",
+    "clearanceReasonPlaceholder": "Skriv inn årsak til å fjerne varselet...",
+    "clearAlert": "Fjern varsel"
+  },
+  "settings": {
+    "title": "Innstillinger",
+    "sections": {
+      "profile": "Profil",
+      "security": "Sikkerhet",
+      "appearance": "Utseende",
+      "dataSync": "Data og synkronisering",
+      "language": "Språk",
+      "about": "Om"
+    },
+    "security": {
+      "biometric": "{{type}}",
+      "biometricDescription": "Bruk {{type}} for å låse opp",
+      "biometricEnabled": "{{type}}-autentisering aktivert",
+      "biometricDisabled": "{{type}}-autentisering deaktivert",
+      "biometricTypes": {
+        "faceId": "Ansiktsgjenkjenning",
+        "fingerprint": "Fingeravtrykk",
+        "iris": "Iris",
+        "biometric": "Biometrisk"
+      },
+      "requireAuthForAlerts": "Krev autentisering for varsler",
+      "requireAuthForAlertsDescription": "Forhindre utilsiktede nødutløsninger",
+      "autoLock": "Autolås",
+      "autoLockDescription": "Lås appen etter 5 minutters inaktivitet"
+    },
+    "appearance": {
+      "lightMode": "Lys modus",
+      "lightModeDescription": "Bruk lyse farger",
+      "darkMode": "Mørk modus",
+      "darkModeDescription": "Bruk mørke farger",
+      "system": "System",
+      "systemDescription": "Følg systeminnstilling",
+      "systemDescriptionWithMode": "Følg systeminnstilling ({{mode}})"
+    },
+    "language": {
+      "title": "Språk",
+      "description": "Velg ditt foretrukne språk",
+      "norwegian": "Norsk",
+      "english": "Engelsk",
+      "changeSuccess": "Språk endret vellykket"
+    },
+    "dataSync": {
+      "syncNow": "Synkroniser nå",
+      "syncing": "Synkroniserer...",
+      "lastSync": "Siste synkronisering: {{time}}",
+      "neverSynced": "Aldri synkronisert",
+      "syncSuccess": "Data synkronisert vellykket",
+      "pendingActions": "{{count}} ventende handling(er) vil synkronisere når tilkoblet"
+    },
+    "about": {
+      "version": "Versjon",
+      "versionNumber": "1.0.0 (MVP)",
+      "appName": "SafeSignal",
+      "appDescription": "Nødvarslingsystem",
+      "copyright": "© 2025 SafeSignal",
+      "authorizedOnly": "Kun for autorisert personell"
+    }
+  },
+  "errors": {
+    "generic": "En feil oppstod. Vennligst prøv igjen.",
+    "network": "Nettverksfeil. Vennligst sjekk tilkoblingen din.",
+    "timeout": "Forespørsel utløp. Vennligst prøv igjen.",
+    "unauthorized": "Du har ikke tillatelse til å utføre denne handlingen."
+  },
+  "success": {
+    "loggedOut": "Du har blitt logget ut vellykket"
+  }
+}

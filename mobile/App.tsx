@@ -8,6 +8,7 @@ import { database } from './src/database';
 import { notificationService } from './src/services/notifications';
 import { SYNC_CONFIG } from './src/constants';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { initI18n } from './src/i18n';
 import './global.css';
 
 export default function App() {
@@ -24,10 +25,13 @@ export default function App() {
 
   const initialize = async () => {
     try {
-      console.log('Step 1: Initializing database...');
+      console.log('Step 1: Initializing i18n...');
+      await initI18n();
+
+      console.log('Step 2: Initializing database...');
       await database.init();
 
-      console.log('Step 2: Loading user session...');
+      console.log('Step 3: Loading user session...');
       // Use timeout to prevent hanging on slow operations
       await Promise.race([
         loadUser(),
@@ -39,17 +43,17 @@ export default function App() {
         // Continue initialization even if user load fails
       });
 
-      console.log('Step 3: Initializing notifications...');
+      console.log('Step 4: Initializing notifications...');
       const deviceId = Device.modelId || 'unknown-device';
       await notificationService.initialize(deviceId).catch((error) => {
         console.warn('Notification initialization failed (non-critical):', error);
         // Continue even if notifications fail
       });
 
-      console.log('Step 4: Setting up background sync...');
+      console.log('Step 5: Setting up background sync...');
       setupBackgroundSync();
 
-      console.log('Step 5: Initialization complete!');
+      console.log('Step 6: Initialization complete!');
       setIsInitializing(false);
     } catch (error) {
       console.error('Initialization error:', error);

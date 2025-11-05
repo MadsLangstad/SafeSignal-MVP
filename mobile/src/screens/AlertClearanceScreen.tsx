@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { apiClient } from '../services/api';
 import type { Alert, AlertClearance, Location as LocationType } from '../types';
@@ -27,6 +28,7 @@ type AlertClearanceScreenRouteProp = RouteProp<RootStackParamList, 'AlertClearan
 type AlertClearanceScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AlertClearance'>;
 
 export default function AlertClearanceScreen() {
+  const { t } = useTranslation();
   const { isDark } = useTheme();
   const navigation = useNavigation<AlertClearanceScreenNavigationProp>();
   const route = useRoute<AlertClearanceScreenRouteProp>();
@@ -65,7 +67,7 @@ export default function AlertClearanceScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         RNAlert.alert(
-          'Location Permission',
+          t('common.error'),
           'Location permission is required for clearance verification. GPS coordinates will be recorded.'
         );
         return;
@@ -82,7 +84,7 @@ export default function AlertClearanceScreen() {
     } catch (error) {
       console.error('Failed to get location:', error);
       RNAlert.alert(
-        'Location Error',
+        t('common.error'),
         'Could not get your location. You can still proceed, but location will not be recorded.'
       );
     } finally {
@@ -92,19 +94,19 @@ export default function AlertClearanceScreen() {
 
   const handleClear = async () => {
     if (!notes.trim()) {
-      RNAlert.alert('Notes Required', 'Please add notes describing the situation.');
+      RNAlert.alert(t('common.error'), 'Please add notes describing the situation.');
       return;
     }
 
     RNAlert.alert(
-      'Confirm Clearance',
+      t('alertClearance.title'),
       clearances.length === 0
         ? 'This will be the FIRST clearance. A second person must also clear this alert.\n\nConfirm all is clear?'
         : 'This will be the SECOND clearance and will fully resolve the alert.\n\nConfirm all is clear?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirm Clear',
+          text: t('alertClearance.confirmClear'),
           style: 'default',
           onPress: confirmClear,
         },
@@ -122,11 +124,11 @@ export default function AlertClearanceScreen() {
         const message = response.data.message;
 
         RNAlert.alert(
-          'Success',
+          t('common.success'),
           message,
           [
             {
-              text: 'OK',
+              text: t('common.ok'),
               onPress: () => {
                 if (clearanceStep === 2) {
                   // Alert fully resolved, go back to history
@@ -143,7 +145,7 @@ export default function AlertClearanceScreen() {
       }
     } catch (error: any) {
       RNAlert.alert(
-        'Error',
+        t('common.error'),
         error.response?.data?.error || 'Failed to clear alert. Please try again.'
       );
     } finally {
@@ -260,10 +262,10 @@ export default function AlertClearanceScreen() {
             size={24}
             color={isDark ? '#FFFFFF' : '#000000'}
           />
-          <Text className={`ml-1 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>Back</Text>
+          <Text className={`ml-1 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>{t('common.back')}</Text>
         </TouchableOpacity>
         <Text className={`text-2xl font-bold ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-          Alert Clearance
+          {t('alertClearance.title')}
         </Text>
         <Text className={`text-sm mt-1 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
           Two-person verification required
@@ -294,7 +296,7 @@ export default function AlertClearanceScreen() {
             {clearances.length > 0 && (
               <View className="mt-4">
                 <Text className={`px-4 mb-2 font-semibold ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  Clearance History
+                  {t('alertHistory.title')}
                 </Text>
                 {clearances.map(renderClearanceCard)}
               </View>
@@ -368,7 +370,7 @@ export default function AlertClearanceScreen() {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text className="text-white font-semibold text-lg">
-                  {clearances.length === 0 ? 'Submit First Clearance' : 'Submit Second Clearance'}
+                  {clearances.length === 0 ? t('alertClearance.clearAlert') : t('alertClearance.clearAlert')}
                 </Text>
               )}
             </TouchableOpacity>
@@ -380,7 +382,7 @@ export default function AlertClearanceScreen() {
           <View className="mx-4 mt-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
             <View className="flex-row items-center mb-2">
               <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-              <Text className="ml-2 text-green-500 font-semibold">Alert Resolved</Text>
+              <Text className="ml-2 text-green-500 font-semibold">{t('alertHistory.cleared')}</Text>
             </View>
             <Text className={isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}>
               This alert has been fully cleared by two different people and is now resolved.

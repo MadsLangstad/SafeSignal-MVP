@@ -9,21 +9,29 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services/auth';
-import { SUCCESS_MESSAGES } from '../constants';
+import { changeLanguage, getCurrentLanguage } from '../i18n';
 import type { ThemeMode } from '../store';
 
 export default function SettingsScreen() {
   const { user, logout, syncData, syncStatus } = useAppStore();
   const { theme, setTheme, colorScheme, isDark } = useTheme();
+  const { t, i18n } = useTranslation();
 
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState<string>('Biometric');
   const [requireAuthForAlerts, setRequireAuthForAlerts] = useState(true);
   const [autoLockEnabled, setAutoLockEnabled] = useState(true);
+  const [currentLanguage, setCurrentLanguage] = useState<'en' | 'nb'>(getCurrentLanguage());
+
+  const handleLanguageChange = async (lang: 'en' | 'nb') => {
+    await changeLanguage(lang);
+    setCurrentLanguage(lang);
+  };
 
   useEffect(() => {
     checkBiometric();
@@ -45,32 +53,32 @@ export default function SettingsScreen() {
       const result = await authService.enableBiometric();
       if (result.success) {
         setBiometricEnabled(true);
-        Alert.alert('Success', `${biometricType} authentication enabled`);
+        Alert.alert(t('common.success'), t('settings.security.biometricEnabled', { type: biometricType }));
       } else {
-        Alert.alert('Error', result.error || 'Failed to enable biometric');
+        Alert.alert(t('common.error'), result.error || 'Failed to enable biometric');
       }
     } else {
       await authService.disableBiometric();
       setBiometricEnabled(false);
-      Alert.alert('Success', `${biometricType} authentication disabled`);
+      Alert.alert(t('common.success'), t('settings.security.biometricDisabled', { type: biometricType }));
     }
   };
 
   const handleLogout = () => {
     Alert.alert(
-      'Confirm Logout',
-      'Are you sure you want to log out?',
+      t('auth.confirmLogout'),
+      t('auth.confirmLogoutMessage'),
       [
         {
-          text: 'Cancel',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Logout',
+          text: t('auth.logout'),
           style: 'destructive',
           onPress: async () => {
             await logout();
-            Alert.alert('Success', SUCCESS_MESSAGES.LOGGED_OUT);
+            Alert.alert(t('common.success'), t('success.loggedOut'));
           },
         },
       ]
@@ -79,7 +87,7 @@ export default function SettingsScreen() {
 
   const handleSync = async () => {
     await syncData();
-    Alert.alert('Success', 'Data synchronized successfully');
+    Alert.alert(t('common.success'), t('settings.dataSync.syncSuccess'));
   };
 
   return (
@@ -90,7 +98,7 @@ export default function SettingsScreen() {
           isDark ? '' : 'bg-white'
         }`}>
           <Text className={`text-3xl font-bold ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-            Settings
+            {t('settings.title')}
           </Text>
         </View>
 
@@ -99,7 +107,7 @@ export default function SettingsScreen() {
           <Text className={`text-xs font-semibold uppercase px-5 mb-3 ${
             isDark ? 'text-gray-500' : 'text-gray-400'
           }`}>
-            Profile
+            {t('settings.sections.profile')}
           </Text>
 
           <View className="flex-row items-center px-5 py-4">
@@ -129,7 +137,7 @@ export default function SettingsScreen() {
           <Text className={`text-xs font-semibold uppercase px-5 mb-3 ${
             isDark ? 'text-gray-500' : 'text-gray-400'
           }`}>
-            Security
+            {t('settings.sections.security')}
           </Text>
 
           {biometricAvailable && (
@@ -140,10 +148,10 @@ export default function SettingsScreen() {
                 <Ionicons name="finger-print" size={24} color="#3B82F6" />
                 <View className="ml-4 flex-1">
                   <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                    {biometricType}
+                    {t('settings.security.biometric', { type: biometricType })}
                   </Text>
                   <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                    Use {biometricType.toLowerCase()} to unlock
+                    {t('settings.security.biometricDescription', { type: biometricType.toLowerCase() })}
                   </Text>
                 </View>
               </View>
@@ -163,10 +171,10 @@ export default function SettingsScreen() {
               <Ionicons name="shield-checkmark" size={24} color="#3B82F6" />
               <View className="ml-4 flex-1">
                 <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  Require Authentication for Alerts
+                  {t('settings.security.requireAuthForAlerts')}
                 </Text>
                 <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                  Prevent accidental emergency triggers
+                  {t('settings.security.requireAuthForAlertsDescription')}
                 </Text>
               </View>
             </View>
@@ -185,10 +193,10 @@ export default function SettingsScreen() {
               <Ionicons name="lock-closed" size={24} color="#3B82F6" />
               <View className="ml-4 flex-1">
                 <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  Auto-Lock
+                  {t('settings.security.autoLock')}
                 </Text>
                 <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                  Lock app after 5 minutes of inactivity
+                  {t('settings.security.autoLockDescription')}
                 </Text>
               </View>
             </View>
@@ -206,7 +214,7 @@ export default function SettingsScreen() {
           <Text className={`text-xs font-semibold uppercase px-5 mb-3 ${
             isDark ? 'text-gray-500' : 'text-gray-400'
           }`}>
-            Appearance
+            {t('settings.sections.appearance')}
           </Text>
 
           <TouchableOpacity
@@ -223,10 +231,10 @@ export default function SettingsScreen() {
               />
               <View className="ml-4 flex-1">
                 <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  Light Mode
+                  {t('settings.appearance.lightMode')}
                 </Text>
                 <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                  Use light colors
+                  {t('settings.appearance.lightModeDescription')}
                 </Text>
               </View>
             </View>
@@ -249,10 +257,10 @@ export default function SettingsScreen() {
               />
               <View className="ml-4 flex-1">
                 <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  Dark Mode
+                  {t('settings.appearance.darkMode')}
                 </Text>
                 <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                  Use dark colors
+                  {t('settings.appearance.darkModeDescription')}
                 </Text>
               </View>
             </View>
@@ -275,14 +283,75 @@ export default function SettingsScreen() {
               />
               <View className="ml-4 flex-1">
                 <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  System
+                  {t('settings.appearance.system')}
                 </Text>
                 <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                  Follow system preference {colorScheme === 'dark' ? '(Dark)' : '(Light)'}
+                  {t('settings.appearance.systemDescriptionWithMode', { mode: colorScheme === 'dark' ? t('settings.appearance.darkMode') : t('settings.appearance.lightMode') })}
                 </Text>
               </View>
             </View>
             {theme === 'system' && (
+              <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Language Section */}
+        <View className={`mt-5 py-3 ${isDark ? '' : 'bg-white'}`}>
+          <Text className={`text-xs font-semibold uppercase px-5 mb-3 ${
+            isDark ? 'text-gray-500' : 'text-gray-400'
+          }`}>
+            {t('settings.sections.language')}
+          </Text>
+
+          <TouchableOpacity
+            className={`flex-row items-center justify-between px-5 py-4 border-b ${
+              isDark ? 'border-gray-800' : 'border-gray-100'
+            }`}
+            onPress={() => handleLanguageChange('nb')}
+          >
+            <View className="flex-row items-center flex-1">
+              <Ionicons
+                name="language"
+                size={24}
+                color={currentLanguage === 'nb' ? '#3B82F6' : (isDark ? '#9CA3AF' : '#666')}
+              />
+              <View className="ml-4 flex-1">
+                <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
+                  {t('settings.language.norwegian')}
+                </Text>
+                <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
+                  Norsk
+                </Text>
+              </View>
+            </View>
+            {currentLanguage === 'nb' && (
+              <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className={`flex-row items-center justify-between px-5 py-4 ${
+              isDark ? '' : ''
+            }`}
+            onPress={() => handleLanguageChange('en')}
+          >
+            <View className="flex-row items-center flex-1">
+              <Ionicons
+                name="language"
+                size={24}
+                color={currentLanguage === 'en' ? '#3B82F6' : (isDark ? '#9CA3AF' : '#666')}
+              />
+              <View className="ml-4 flex-1">
+                <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
+                  {t('settings.language.english')}
+                </Text>
+                <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
+                  English
+                </Text>
+              </View>
+            </View>
+            {currentLanguage === 'en' && (
               <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
             )}
           </TouchableOpacity>
@@ -293,7 +362,7 @@ export default function SettingsScreen() {
           <Text className={`text-xs font-semibold uppercase px-5 mb-3 ${
             isDark ? 'text-gray-500' : 'text-gray-400'
           }`}>
-            Data & Sync
+            {t('settings.sections.dataSync')}
           </Text>
 
           <TouchableOpacity
@@ -311,12 +380,12 @@ export default function SettingsScreen() {
               />
               <View className="ml-4 flex-1">
                 <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  {syncStatus.isSyncing ? 'Syncing...' : 'Sync Now'}
+                  {syncStatus.isSyncing ? t('settings.dataSync.syncing') : t('settings.dataSync.syncNow')}
                 </Text>
                 <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
                   {syncStatus.lastSyncAt
-                    ? `Last sync: ${new Date(syncStatus.lastSyncAt).toLocaleString()}`
-                    : 'Never synced'}
+                    ? t('settings.dataSync.lastSync', { time: new Date(syncStatus.lastSyncAt).toLocaleString() })
+                    : t('settings.dataSync.neverSynced')}
                 </Text>
               </View>
             </View>
@@ -329,7 +398,7 @@ export default function SettingsScreen() {
             }`}>
               <Ionicons name="information-circle-outline" size={20} color="#FFA500" />
               <Text className={`ml-2 text-xs flex-1 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                {syncStatus.pendingActions} pending action(s) will sync when online
+                {t('settings.dataSync.pendingActions', { count: syncStatus.pendingActions })}
               </Text>
             </View>
           )}
@@ -340,7 +409,7 @@ export default function SettingsScreen() {
           <Text className={`text-xs font-semibold uppercase px-5 mb-3 ${
             isDark ? 'text-gray-500' : 'text-gray-400'
           }`}>
-            About
+            {t('settings.sections.about')}
           </Text>
 
           <View className={`flex-row items-center px-5 py-4 border-b ${
@@ -350,10 +419,10 @@ export default function SettingsScreen() {
               <Ionicons name="information-circle-outline" size={24} color={isDark ? '#9CA3AF' : '#666'} />
               <View className="ml-4 flex-1">
                 <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  Version
+                  {t('settings.about.version')}
                 </Text>
                 <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                  1.0.0 (MVP)
+                  {t('settings.about.versionNumber')}
                 </Text>
               </View>
             </View>
@@ -366,10 +435,10 @@ export default function SettingsScreen() {
               <Ionicons name="shield-checkmark-outline" size={24} color={isDark ? '#9CA3AF' : '#666'} />
               <View className="ml-4 flex-1">
                 <Text className={`text-base font-medium mb-0.5 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                  SafeSignal
+                  {t('settings.about.appName')}
                 </Text>
                 <Text className={`text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                  Emergency Alert System
+                  {t('settings.about.appDescription')}
                 </Text>
               </View>
             </View>
@@ -385,16 +454,16 @@ export default function SettingsScreen() {
         >
           <Ionicons name="log-out-outline" size={24} color="#DC2626" />
           <Text className="ml-2 text-base font-semibold text-red-600">
-            Log Out
+            {t('auth.logout')}
           </Text>
         </TouchableOpacity>
 
         <View className="items-center py-8">
           <Text className={`text-xs my-0.5 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-            © 2025 SafeSignal
+            {t('settings.about.copyright')}
           </Text>
           <Text className={`text-xs my-0.5 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-            For authorized personnel only
+            {t('settings.about.authorizedOnly')}
           </Text>
         </View>
       </ScrollView>

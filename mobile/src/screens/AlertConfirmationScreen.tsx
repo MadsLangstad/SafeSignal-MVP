@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { useTheme } from '../context/ThemeContext';
 import { ALERT_MODES } from '../constants';
@@ -19,6 +20,7 @@ type RouteProps = RouteProp<RootStackParamList, 'AlertConfirmation'>;
 type NavigationProps = StackNavigationProp<RootStackParamList>;
 
 export default function AlertConfirmationScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
   const { mode } = route.params;
@@ -28,6 +30,7 @@ export default function AlertConfirmationScreen() {
   const [isTriggering, setIsTriggering] = useState(false);
 
   const config = ALERT_MODES[mode];
+  const modeKey = mode.toLowerCase() as 'audible' | 'silent' | 'medical' | 'fire';
 
   const handleConfirm = async () => {
     setIsTriggering(true);
@@ -49,7 +52,7 @@ export default function AlertConfirmationScreen() {
         });
       } else {
         Alert.alert(
-          'Error',
+          t('common.error'),
           'Failed to trigger alert. Please try again or contact support.',
           [
             {
@@ -57,7 +60,7 @@ export default function AlertConfirmationScreen() {
               onPress: handleConfirm,
             },
             {
-              text: 'Cancel',
+              text: t('common.cancel'),
               style: 'cancel',
             },
           ]
@@ -65,7 +68,7 @@ export default function AlertConfirmationScreen() {
       }
     } catch (error) {
       console.error('Alert confirmation error:', error);
-      Alert.alert('Error', `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
+      Alert.alert(t('common.error'), `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsTriggering(false);
     }
@@ -88,10 +91,10 @@ export default function AlertConfirmationScreen() {
 
         {/* Alert Info */}
         <Text className={`text-3xl font-bold mb-3 text-center ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-          {config.label}
+          {t(`alertModes.${modeKey}.label`)}
         </Text>
         <Text className={`text-base text-center mb-8 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-          {config.description}
+          {t(`alertModes.${modeKey}.description`)}
         </Text>
 
         {/* Location Info */}
@@ -124,8 +127,7 @@ export default function AlertConfirmationScreen() {
         }`}>
           <Ionicons name="warning" size={24} color="#FFA500" />
           <Text className={`flex-1 ml-3 text-sm leading-5 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-            This will immediately trigger an emergency alert in the selected building.
-            All staff will be notified.
+            {t('alertConfirmation.message', { mode: t(`alertModes.${modeKey}.label`) })}
           </Text>
         </View>
 
@@ -141,7 +143,7 @@ export default function AlertConfirmationScreen() {
             disabled={isTriggering}
           >
             <Text className={`text-base font-semibold ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              Cancel
+              {t('common.cancel')}
             </Text>
           </TouchableOpacity>
 
@@ -159,7 +161,7 @@ export default function AlertConfirmationScreen() {
               <>
                 <Ionicons name="alert-circle" size={20} color="#fff" />
                 <Text className="text-base font-semibold text-white ml-2">
-                  Confirm Alert
+                  {t('alertConfirmation.sendAlert')}
                 </Text>
               </>
             )}

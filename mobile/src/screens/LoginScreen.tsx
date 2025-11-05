@@ -13,13 +13,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
 import { feideAuth, bankIDAuth } from '../services/auth';
-import { VALIDATION, ERROR_MESSAGES } from '../constants';
+import { VALIDATION } from '../constants';
 import { SafeSignalLogo } from '../components';
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -45,7 +47,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Authentication Error', error);
+      Alert.alert(t('common.error'), error);
       clearError();
     }
   }, [error]);
@@ -55,24 +57,24 @@ export default function LoginScreen() {
     const trimmedPassword = password.trim();
 
     if (!trimmedEmail) {
-      Alert.alert('Error', 'Please enter your email');
+      Alert.alert(t('common.error'), t('auth.errors.enterEmail'));
       return;
     }
 
     if (!VALIDATION.EMAIL_REGEX.test(trimmedEmail)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert(t('common.error'), t('auth.errors.validEmail'));
       return;
     }
 
     if (!trimmedPassword) {
-      Alert.alert('Error', 'Please enter your password');
+      Alert.alert(t('common.error'), t('auth.errors.enterPassword'));
       return;
     }
 
     if (trimmedPassword.length < VALIDATION.PASSWORD_MIN_LENGTH) {
       Alert.alert(
-        'Error',
-        `Password must be at least ${VALIDATION.PASSWORD_MIN_LENGTH} characters`
+        t('common.error'),
+        t('auth.errors.passwordMinLength', { length: VALIDATION.PASSWORD_MIN_LENGTH })
       );
       return;
     }
@@ -80,15 +82,15 @@ export default function LoginScreen() {
     const success = await login(trimmedEmail, trimmedPassword);
 
     if (!success) {
-      Alert.alert('Login Failed', ERROR_MESSAGES.AUTH_FAILED);
+      Alert.alert(t('common.error'), t('auth.errors.authFailed'));
     }
   };
 
   const handleFeideLogin = async () => {
     if (!feideAuth || !feideAuth.isConfigured()) {
       Alert.alert(
-        'Not Configured',
-        'Feide authentication is not configured. Please contact your administrator.'
+        t('common.error'),
+        t('auth.errors.feideNotConfigured')
       );
       return;
     }
@@ -106,8 +108,8 @@ export default function LoginScreen() {
 
     if (!success) {
       Alert.alert(
-        'Setup Required',
-        'Please login with your email and password first to enable biometric authentication.'
+        t('common.error'),
+        t('auth.errors.biometricSetupRequired')
       );
     }
   };
@@ -133,13 +135,13 @@ export default function LoginScreen() {
                   isDark ? 'text-dark-text-primary' : 'text-light-text-primary'
                 }`}
               >
-                SafeSignal
+                {t('common.appName')}
               </Text>
               <Text
                 className="text-xs font-semibold tracking-widest mt-2"
                 style={{ color: '#3B82F6' }}
               >
-                EMERGENCY ALERTS
+                {t('common.appTagline')}
               </Text>
             </View>
 
@@ -164,7 +166,7 @@ export default function LoginScreen() {
                       isDark ? 'text-dark-text-primary' : 'text-light-text-primary'
                     }`}
                   >
-                    Sign in with Feide
+                    {t('auth.signInWithFeide')}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -187,7 +189,7 @@ export default function LoginScreen() {
                     isDark ? 'text-dark-text-primary' : 'text-light-text-primary'
                   }`}
                 >
-                  Sign in with BankID
+                  {t('auth.signInWithBankID')}
                 </Text>
               </TouchableOpacity>
 
@@ -203,7 +205,7 @@ export default function LoginScreen() {
                     isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
                   }`}
                 >
-                  Or continue with email
+                  {t('auth.orContinueWithEmail')}
                 </Text>
                 <View
                   className={`flex-1 h-px ${
@@ -231,7 +233,7 @@ export default function LoginScreen() {
                   className={`flex-1 h-12 text-base ml-3 ${
                     isDark ? 'text-dark-text-primary' : 'text-light-text-primary'
                   }`}
-                  placeholder="Email"
+                  placeholder={t('auth.email')}
                   placeholderTextColor={isDark ? '#6B7280' : '#999'}
                   value={email}
                   onChangeText={setEmail}
@@ -258,7 +260,7 @@ export default function LoginScreen() {
                   className={`flex-1 h-12 text-base ml-3 ${
                     isDark ? 'text-dark-text-primary' : 'text-light-text-primary'
                   }`}
-                  placeholder="Password"
+                  placeholder={t('auth.password')}
                   placeholderTextColor={isDark ? '#6B7280' : '#999'}
                   value={password}
                   onChangeText={setPassword}
@@ -292,7 +294,7 @@ export default function LoginScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text className="text-white text-lg font-semibold">
-                    Sign In
+                    {t('auth.signIn')}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -306,7 +308,7 @@ export default function LoginScreen() {
                 >
                   <Ionicons name="finger-print" size={24} color="#3B82F6" />
                   <Text className="text-primary text-base ml-3">
-                    Use Biometric Authentication
+                    {t('auth.useBiometric')}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -318,7 +320,7 @@ export default function LoginScreen() {
                 isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
               }`}
             >
-              For authorized personnel only
+              {t('auth.authorizedPersonnelOnly')}
             </Text>
           </View>
         </ScrollView>

@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { useTheme } from '../context/ThemeContext';
 import { ALERT_MODES, UI_CONSTANTS } from '../constants';
@@ -19,6 +20,7 @@ import type { RootStackParamList, AlertMode } from '../types';
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { isDark } = useTheme();
 
@@ -51,12 +53,12 @@ export default function HomeScreen() {
 
   const handleAlertPress = (mode: AlertMode) => {
     if (!selectedBuilding) {
-      Alert.alert('Building Required', 'Please select a building first');
+      Alert.alert(t('home.buildingRequired'), t('home.buildingRequiredMessage'));
       return;
     }
 
     if (!selectedRoomId) {
-      Alert.alert('Room Required', 'Please select your current room');
+      Alert.alert(t('home.roomRequired'), t('home.roomRequiredMessage'));
       return;
     }
 
@@ -68,14 +70,14 @@ export default function HomeScreen() {
       return (
         <View className="mb-5">
           <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-            No buildings available
+            {t('home.noBuildingsAvailable')}
           </Text>
           <TouchableOpacity
             className="flex-row items-center"
             onPress={loadBuildings}
           >
             <Ionicons name="refresh" size={20} color="#3B82F6" />
-            <Text className="text-primary font-semibold ml-2">Refresh</Text>
+            <Text className="text-primary font-semibold ml-2">{t('common.refresh')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -84,7 +86,7 @@ export default function HomeScreen() {
     return (
       <View className="mb-5">
         <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-          Select Building
+          {t('home.selectBuilding')}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {buildings.map((building) => (
@@ -126,7 +128,7 @@ export default function HomeScreen() {
     return (
       <View className="mb-5">
         <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-          Select Your Current Room
+          {t('home.selectRoom')}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {selectedBuilding.rooms.map((room) => (
@@ -172,7 +174,7 @@ export default function HomeScreen() {
         <View className="flex-row justify-between items-center mb-8">
           <View>
             <Text className={`text-base ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-              Welcome back,
+              {t('home.welcomeBack')}
             </Text>
             <Text className={`text-2xl font-bold mt-1 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
               {user?.name || 'User'}
@@ -197,10 +199,10 @@ export default function HomeScreen() {
         {/* Emergency Button */}
         <View className="items-center my-10">
           <Text className={`text-xl font-bold mb-2 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-            Emergency Alert
+            {t('home.emergencyAlert')}
           </Text>
           <Text className={`text-sm mb-8 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-            Press and hold to trigger an alert
+            {t('home.pressAndHold')}
           </Text>
 
           <TouchableOpacity
@@ -224,18 +226,19 @@ export default function HomeScreen() {
             disabled={!selectedBuilding || !selectedRoomId}
           >
             <Ionicons name="alert-circle" size={80} color="#fff" />
-            <Text className="text-white text-lg font-bold mt-2">EMERGENCY</Text>
+            <Text className="text-white text-lg font-bold mt-2">{t('home.emergency')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Quick Alert Modes */}
         <View className="mt-5">
           <Text className={`text-lg font-bold mb-4 ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-            Alert Modes
+            {t('home.alertModes')}
           </Text>
           <View className="space-y-3">
             {(Object.keys(ALERT_MODES) as AlertMode[]).map((mode) => {
               const config = ALERT_MODES[mode];
+              const modeKey = mode.toLowerCase() as 'audible' | 'silent' | 'medical' | 'fire';
               return (
                 <TouchableOpacity
                   key={mode}
@@ -249,11 +252,11 @@ export default function HomeScreen() {
                 >
                   <View className="mb-2">
                     <Text className={`text-base font-semibold ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                      {config.label}
+                      {t(`alertModes.${modeKey}.label`)}
                     </Text>
                   </View>
                   <Text className={`text-sm ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-                    {config.description}
+                    {t(`alertModes.${modeKey}.description`)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -268,21 +271,21 @@ export default function HomeScreen() {
               <>
                 <Ionicons name="sync" size={20} color="#FF9800" />
                 <Text className={`ml-2 text-sm font-semibold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
-                  Syncing ({syncStatus.pendingCount} pending)
+                  {t('home.syncing', { count: syncStatus.pendingCount })}
                 </Text>
               </>
             ) : (
               <>
                 <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
                 <Text className={`ml-2 text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-                  System Online
+                  {t('home.systemOnline')}
                 </Text>
               </>
             )}
           </View>
           {syncStatus.lastSyncAt && (
             <Text className={`mt-2 text-xs ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-              Last sync: {new Date(syncStatus.lastSyncAt).toLocaleTimeString()}
+              {t('home.lastSync', { time: new Date(syncStatus.lastSyncAt).toLocaleTimeString() })}
             </Text>
           )}
         </View>

@@ -1,4 +1,5 @@
 import * as LocalAuthentication from 'expo-local-authentication';
+import i18n from '../i18n';
 import { apiClient } from './api';
 import { secureStorage } from './secureStorage';
 import { ERROR_MESSAGES } from '../constants';
@@ -124,13 +125,13 @@ class AuthService {
   getBiometricTypeLabel(type: LocalAuthentication.AuthenticationType | null): string {
     switch (type) {
       case LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION:
-        return 'Face ID';
+        return i18n.t('settings.security.biometricTypes.faceId');
       case LocalAuthentication.AuthenticationType.FINGERPRINT:
-        return 'Fingerprint';
+        return i18n.t('settings.security.biometricTypes.fingerprint');
       case LocalAuthentication.AuthenticationType.IRIS:
-        return 'Iris';
+        return i18n.t('settings.security.biometricTypes.iris');
       default:
-        return 'Biometric';
+        return i18n.t('settings.security.biometricTypes.biometric');
     }
   }
 }

@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 // Import screens
 import {
@@ -46,6 +47,7 @@ const MainTab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
   const { isDark } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <MainTab.Navigator
@@ -74,9 +76,21 @@ function MainTabs() {
         headerShown: false as boolean,
       })}
     >
-      <MainTab.Screen name="Home" component={HomeScreen} />
-      <MainTab.Screen name="History" component={AlertHistoryScreen} />
-      <MainTab.Screen name="Settings" component={SettingsScreen} />
+      <MainTab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ title: t('navigation.home') }}
+      />
+      <MainTab.Screen
+        name="History"
+        component={AlertHistoryScreen}
+        options={{ title: t('navigation.history') }}
+      />
+      <MainTab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: t('navigation.settings') }}
+      />
     </MainTab.Navigator>
   );
 }

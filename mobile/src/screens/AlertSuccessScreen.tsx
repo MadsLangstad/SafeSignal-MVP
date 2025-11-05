@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { useAppStore } from '../store';
 import type { RootStackParamList } from '../navigation';
@@ -19,6 +20,7 @@ type RouteProps = RouteProp<RootStackParamList, 'AlertSuccess'>;
 type NavigationProps = StackNavigationProp<RootStackParamList>;
 
 export default function AlertSuccessScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
   const { alertId, buildingName, roomName, triggeredAt: triggeredAtString } = route.params;
@@ -59,15 +61,15 @@ export default function AlertSuccessScreen() {
 
   const handleClearAlert = async () => {
     Alert.alert(
-      'Clear Alert',
-      'Are you sure you want to mark this alert as resolved?',
+      t('alertClearance.title'),
+      t('alertClearance.message'),
       [
         {
-          text: 'Cancel',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Clear',
+          text: t('alertClearance.confirmClear'),
           style: 'destructive',
           onPress: async () => {
             setIsResolving(true);
@@ -75,13 +77,13 @@ export default function AlertSuccessScreen() {
               const success = await resolveAlert(alertId);
               if (success) {
                 setIsResolved(true);
-                Alert.alert('Success', 'Alert has been cleared successfully');
+                Alert.alert(t('common.success'), t('alertClearance.clearedSuccessfully'));
               } else {
-                Alert.alert('Error', 'Failed to clear alert. Please try again.');
+                Alert.alert(t('common.error'), 'Failed to clear alert. Please try again.');
               }
             } catch (error) {
               console.error('Clear alert error:', error);
-              Alert.alert('Error', 'An unexpected error occurred');
+              Alert.alert(t('common.error'), 'An unexpected error occurred');
             } finally {
               setIsResolving(false);
             }
@@ -118,10 +120,10 @@ export default function AlertSuccessScreen() {
         {/* Success Message */}
         <Animated.View style={{ opacity: fadeAnim }}>
           <Text className={`text-3xl font-bold mb-2 text-center ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-            Alert Triggered Successfully
+            {t('alertSuccess.title')}
           </Text>
           <Text className={`text-base mb-8 text-center ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-            Emergency responders have been notified
+            {t('alertSuccess.message')}
           </Text>
         </Animated.View>
 
@@ -143,7 +145,7 @@ export default function AlertSuccessScreen() {
               <Text className={`text-xs uppercase tracking-wide mb-0.5 ${
                 isDark ? 'text-gray-500' : 'text-gray-400'
               }`}>
-                Alert ID
+                {t('alertSuccess.alertType')}
               </Text>
               <Text className={`text-base font-medium ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
                 {alertId}
@@ -165,7 +167,7 @@ export default function AlertSuccessScreen() {
               <Text className={`text-xs uppercase tracking-wide mb-0.5 ${
                 isDark ? 'text-gray-500' : 'text-gray-400'
               }`}>
-                Time
+                {t('alertSuccess.timestamp')}
               </Text>
               <Text className={`text-base font-medium ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
                 {formatTime(triggeredAt)}
@@ -187,7 +189,7 @@ export default function AlertSuccessScreen() {
               <Text className={`text-xs uppercase tracking-wide mb-0.5 ${
                 isDark ? 'text-gray-500' : 'text-gray-400'
               }`}>
-                Building
+                {t('alertConfirmation.building')}
               </Text>
               <Text className={`text-base font-medium ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
                 {buildingName}
@@ -209,7 +211,7 @@ export default function AlertSuccessScreen() {
               <Text className={`text-xs uppercase tracking-wide mb-0.5 ${
                 isDark ? 'text-gray-500' : 'text-gray-400'
               }`}>
-                Room
+                {t('alertConfirmation.room')}
               </Text>
               <Text className={`text-base font-medium ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
                 {roomName}
@@ -232,7 +234,7 @@ export default function AlertSuccessScreen() {
               ? (isDark ? 'text-green-400' : 'text-green-700')
               : (isDark ? 'text-blue-400' : 'text-blue-700')
           }`}>
-            Status: {isResolved ? 'Resolved' : 'Active'}
+            {t('alertSuccess.status')}: {isResolved ? t('alertHistory.cleared') : t('alertSuccess.active')}
           </Text>
         </View>
 
@@ -252,7 +254,7 @@ export default function AlertSuccessScreen() {
                 <>
                   <Ionicons name="checkmark-done" size={20} color="#fff" />
                   <Text className="text-base font-semibold text-white ml-2">
-                    Clear Alert
+                    {t('alertClearance.clearAlert')}
                   </Text>
                 </>
               )}
@@ -268,7 +270,7 @@ export default function AlertSuccessScreen() {
             >
               <Ionicons name="list-outline" size={20} color="#3B82F6" />
               <Text className="text-base font-semibold text-primary ml-2">
-                View History
+                {t('alertHistory.title')}
               </Text>
             </TouchableOpacity>
 
@@ -277,7 +279,7 @@ export default function AlertSuccessScreen() {
               onPress={handleDone}
             >
               <Text className="text-base font-semibold text-white">
-                Done
+                {t('common.done')}
               </Text>
             </TouchableOpacity>
           </View>

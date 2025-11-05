@@ -1,0 +1,205 @@
+{
+  "common": {
+    "appName": "SafeSignal",
+    "appTagline": "EMERGENCY ALERTS",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "ok": "OK",
+    "error": "Error",
+    "success": "Success",
+    "loading": "Loading...",
+    "refresh": "Refresh",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "navigation": {
+    "home": "Home",
+    "history": "History",
+    "settings": "Settings",
+    "confirmEmergencyAlert": "Confirm Emergency Alert"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signInWithFeide": "Sign in with Feide",
+    "signInWithBankID": "Sign in with BankID",
+    "orContinueWithEmail": "Or continue with email",
+    "email": "Email",
+    "password": "Password",
+    "logout": "Log Out",
+    "confirmLogout": "Confirm Logout",
+    "confirmLogoutMessage": "Are you sure you want to log out?",
+    "authorizedPersonnelOnly": "For authorized personnel only",
+    "useBiometric": "Use Biometric Authentication",
+    "errors": {
+      "enterEmail": "Please enter your email",
+      "validEmail": "Please enter a valid email address",
+      "enterPassword": "Please enter your password",
+      "passwordMinLength": "Password must be at least {{length}} characters",
+      "authFailed": "Authentication failed. Please try again.",
+      "feideNotConfigured": "Feide authentication is not configured. Please contact your administrator.",
+      "biometricSetupRequired": "Please login with your email and password first to enable biometric authentication."
+    }
+  },
+  "home": {
+    "welcomeBack": "Welcome back,",
+    "selectBuilding": "Select Building",
+    "selectRoom": "Select Your Current Room",
+    "noBuildingsAvailable": "No buildings available",
+    "emergencyAlert": "Emergency Alert",
+    "pressAndHold": "Press and hold to trigger an alert",
+    "emergency": "EMERGENCY",
+    "alertModes": "Alert Modes",
+    "buildingRequired": "Building Required",
+    "buildingRequiredMessage": "Please select a building first",
+    "roomRequired": "Room Required",
+    "roomRequiredMessage": "Please select your current room",
+    "systemOnline": "System Online",
+    "syncing": "Syncing ({{count}} pending)",
+    "lastSync": "Last sync: {{time}}"
+  },
+  "alertModes": {
+    "audible": {
+      "label": "Audible Alert",
+      "description": "Sound alarm in all rooms"
+    },
+    "silent": {
+      "label": "Silent Alert",
+      "description": "Notify staff without audible alarm"
+    },
+    "lockdown": {
+      "label": "Lockdown",
+      "description": "Initiate building lockdown"
+    },
+    "evacuation": {
+      "label": "Evacuation",
+      "description": "Evacuate building immediately"
+    }
+  },
+  "alertConfirmation": {
+    "title": "Confirm Alert",
+    "message": "You are about to send an {{mode}} alert for:",
+    "building": "Building",
+    "room": "Room",
+    "typeConfirm": "Type CONFIRM to proceed",
+    "confirmText": "CONFIRM",
+    "sendAlert": "Send Alert",
+    "typingRequired": "Typing Required",
+    "typingRequiredMessage": "Please type CONFIRM to send the alert"
+  },
+  "alertSuccess": {
+    "title": "Alert Sent Successfully",
+    "message": "Emergency services have been notified",
+    "alertType": "Alert Type",
+    "location": "Location",
+    "timestamp": "Time",
+    "status": "Status",
+    "active": "Active",
+    "responseTeamNotified": "Response team has been notified and is on their way",
+    "stayCalm": "Stay calm and follow safety protocols",
+    "backToHome": "Back to Home"
+  },
+  "alertHistory": {
+    "title": "Alert History",
+    "noAlerts": "No Previous Alerts",
+    "noAlertsMessage": "You haven't sent any alerts yet",
+    "sentBy": "Sent by",
+    "at": "at",
+    "cleared": "Cleared",
+    "statuses": {
+      "Resolved": "Resolved",
+      "COMPLETED": "Completed",
+      "PendingClearance": "Pending Clearance",
+      "New": "New",
+      "TRIGGERED": "Triggered",
+      "Acknowledged": "Acknowledged",
+      "Cancelled": "Cancelled",
+      "FAILED": "Failed",
+      "ESCALATED": "Escalated"
+    }
+  },
+  "alertClearance": {
+    "title": "Clear Alert",
+    "message": "Are you sure you want to clear this alert?",
+    "confirmClear": "Yes, Clear Alert",
+    "clearedSuccessfully": "Alert cleared successfully",
+    "location": "Location",
+    "sentAt": "Sent at",
+    "clearanceReason": "Clearance Reason (Optional)",
+    "clearanceReasonPlaceholder": "Enter reason for clearing the alert...",
+    "clearAlert": "Clear Alert"
+  },
+  "settings": {
+    "title": "Settings",
+    "sections": {
+      "profile": "Profile",
+      "security": "Security",
+      "appearance": "Appearance",
+      "dataSync": "Data & Sync",
+      "language": "Language",
+      "about": "About"
+    },
+    "security": {
+      "biometric": "{{type}}",
+      "biometricDescription": "Use {{type}} to unlock",
+      "biometricEnabled": "{{type}} authentication enabled",
+      "biometricDisabled": "{{type}} authentication disabled",
+      "biometricTypes": {
+        "faceId": "Face ID",
+        "fingerprint": "Fingerprint",
+        "iris": "Iris",
+        "biometric": "Biometric"
+      },
+      "requireAuthForAlerts": "Require Authentication for Alerts",
+      "requireAuthForAlertsDescription": "Prevent accidental emergency triggers",
+      "autoLock": "Auto-Lock",
+      "autoLockDescription": "Lock app after 5 minutes of inactivity"
+    },
+    "appearance": {
+      "lightMode": "Light Mode",
+      "lightModeDescription": "Use light colors",
+      "darkMode": "Dark Mode",
+      "darkModeDescription": "Use dark colors",
+      "system": "System",
+      "systemDescription": "Follow system preference",
+      "systemDescriptionWithMode": "Follow system preference ({{mode}})"
+    },
+    "language": {
+      "title": "Language",
+      "description": "Choose your preferred language",
+      "norwegian": "Norwegian",
+      "english": "English",
+      "changeSuccess": "Language changed successfully"
+    },
+    "dataSync": {
+      "syncNow": "Sync Now",
+      "syncing": "Syncing...",
+      "lastSync": "Last sync: {{time}}",
+      "neverSynced": "Never synced",
+      "syncSuccess": "Data synchronized successfully",
+      "pendingActions": "{{count}} pending action(s) will sync when online"
+    },
+    "about": {
+      "version": "Version",
+      "versionNumber": "1.0.0 (MVP)",
+      "appName": "SafeSignal",
+      "appDescription": "Emergency Alert System",
+      "copyright": "© 2025 SafeSignal",
+      "authorizedOnly": "For authorized personnel only"
+    }
+  },
+  "errors": {
+    "generic": "An error occurred. Please try again.",
+    "network": "Network error. Please check your connection.",
+    "timeout": "Request timed out. Please try again.",
+    "unauthorized": "You are not authorized to perform this action."
+  },
+  "success": {
+    "loggedOut": "You have been logged out successfully"
+  }
+}

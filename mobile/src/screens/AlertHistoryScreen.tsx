@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { useTheme } from '../context/ThemeContext';
 import { ALERT_MODES } from '../constants';
@@ -25,6 +26,7 @@ type RootStackParamList = {
 type AlertHistoryScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AlertHistory'>;
 
 export default function AlertHistoryScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<AlertHistoryScreenNavigationProp>();
   const { isDark } = useTheme();
   const {
@@ -123,10 +125,19 @@ export default function AlertHistoryScreen() {
     return `${building.name} • ${room.name}`;
   };
 
+  const getStatusTranslation = (status: string): string => {
+    const statusKey = `alertHistory.statuses.${status}`;
+    const translated = t(statusKey);
+    // If translation key doesn't exist, return the original status
+    return translated === statusKey ? status : translated;
+  };
+
   const renderAlert = ({ item }: { item: Alert }) => {
     const config = ALERT_MODES[item.mode];
+    const modeKey = item.mode.toLowerCase() as 'audible' | 'silent' | 'lockdown' | 'evacuation';
     const location = getBuildingAndRoomName(item);
     const clearanceBadge = getClearanceBadge(item);
+    const statusText = getStatusTranslation(item.status);
 
     return (
       <TouchableOpacity
@@ -150,12 +161,12 @@ export default function AlertHistoryScreen() {
                 style={{ marginRight: 8 }}
               />
               <Text className={`text-base font-semibold ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-                {config.label}
+                {t(`alertModes.${modeKey}.label`)}
               </Text>
             </View>
             <View className={`px-3 py-1.5 rounded-lg ${getStatusStyle(item.status)}`}>
               <Text className={`text-xs font-bold uppercase ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-                {item.status}
+                {statusText}
               </Text>
             </View>
           </View>
@@ -193,7 +204,7 @@ export default function AlertHistoryScreen() {
                   color="#F59E0B"
                 />
                 <Text className="ml-2.5 text-sm text-amber-500 font-medium">
-                  Pending sync
+                  {t('home.syncing', { count: 1 })}
                 </Text>
               </View>
             )}
@@ -211,10 +222,10 @@ export default function AlertHistoryScreen() {
         color={isDark ? '#4B5563' : '#ccc'}
       />
       <Text className={`text-xl font-semibold mt-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-        No Alerts
+        {t('alertHistory.noAlerts')}
       </Text>
       <Text className={`text-sm mt-2 text-center ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>
-        Alert history will appear here once triggered
+        {t('alertHistory.noAlertsMessage')}
       </Text>
     </View>
   );
@@ -235,7 +246,7 @@ export default function AlertHistoryScreen() {
         isDark ? '' : 'bg-white'
       }`}>
         <Text className={`text-3xl font-bold ${isDark ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
-          Alert History
+          {t('alertHistory.title')}
         </Text>
       </View>
 
