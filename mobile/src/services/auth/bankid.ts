@@ -3,7 +3,6 @@ import { apiClient } from '../api';
 import type {
   BankIDInitResponse,
   BankIDStatusResponse,
-  BankIDAuthRequest,
   SSOSession,
 } from '../../types/auth';
 
@@ -22,15 +21,13 @@ class BankIDAuthService {
    */
   async initiateAuth(personalNumber?: string): Promise<SSOSession> {
     try {
-      // Get user's IP address (required by BankID)
       const endUserIp = await this.getUserIp();
 
-      const request: BankIDAuthRequest = {
+      const request: any = {
         endUserIp,
         ...(personalNumber && { personalNumber }),
       };
 
-      // Call backend to initiate BankID session
       const response = await apiClient.post<BankIDInitResponse>(
         '/auth/bankid/initiate',
         request
@@ -40,8 +37,7 @@ class BankIDAuthService {
         throw new Error('Failed to initiate BankID authentication');
       }
 
-      const { sessionId, qrCodeData, autoStartToken, expiresAt } =
-        response.data;
+      const { sessionId, qrCodeData, autoStartToken } = response.data;
 
       // Launch BankID app if on mobile
       if (Platform.OS !== 'web' && autoStartToken) {
@@ -52,7 +48,6 @@ class BankIDAuthService {
         provider: 'bankid',
         sessionId,
         status: 'pending',
-        expiresAt: new Date(expiresAt),
         bankid: {
           qrCodeData,
           autoStartToken,
@@ -73,8 +68,7 @@ class BankIDAuthService {
    */
   private async launchBankIDApp(autoStartToken: string): Promise<void> {
     try {
-      const scheme =
-        Platform.OS === 'ios' ? 'bankid:///' : 'bankid://';
+      const scheme = Platform.OS === 'ios' ? 'bankid:///' : 'bankid://';
       const url = `${scheme}?autostarttoken=${autoStartToken}&redirect=null`;
 
       const supported = await Linking.canOpenURL(url);
@@ -83,13 +77,11 @@ class BankIDAuthService {
       }
     } catch (error) {
       console.warn('Failed to launch BankID app:', error);
-      // Non-critical error - user can still use QR code
     }
   }
 
   /**
    * Poll BankID session status
-   * Returns updated session status
    */
   async pollStatus(
     sessionId: string,
@@ -106,9 +98,8 @@ class BankIDAuthService {
             `/auth/bankid/status/${sessionId}`
           );
 
-          const { status, hintCode, completionData } = response.data;
+          const { status, hintCode } = response.data;
 
-          // Create session object
           const session: SSOSession = {
             provider: 'bankid',
             sessionId,
@@ -120,18 +111,13 @@ class BankIDAuthService {
             },
           };
 
-          // Update caller
           if (onStatusChange) {
             onStatusChange(session);
           }
 
-          // Check if complete or failed
           if (status === 'complete') {
             this.stopPolling();
-            resolve({
-              ...session,
-              status: 'completed',
-            });
+            resolve({ ...session, status: 'completed' });
           } else if (status === 'failed' || status === 'expired') {
             this.stopPolling();
             resolve({
@@ -141,7 +127,6 @@ class BankIDAuthService {
             });
           }
 
-          // Check max attempts
           if (attempts >= this.maxPollAttempts) {
             this.stopPolling();
             resolve({
@@ -157,19 +142,13 @@ class BankIDAuthService {
             sessionId,
             status: 'failed',
             error: error.message || 'Polling failed',
-            bankid: {
-              qrCodeData: '',
-              autoStartToken: '',
-            },
+            bankid: { qrCodeData: '', autoStartToken: '' },
           });
         }
       }, this.pollInterval);
     });
   }
 
-  /**
-   * Stop polling
-   */
   stopPolling(): void {
     if (this.pollingTimer) {
       clearInterval(this.pollingTimer);
@@ -177,9 +156,6 @@ class BankIDAuthService {
     }
   }
 
-  /**
-   * Cancel BankID authentication
-   */
   async cancelAuth(sessionId: string): Promise<void> {
     try {
       this.stopPolling();
@@ -189,20 +165,18 @@ class BankIDAuthService {
     }
   }
 
-  /**
-   * Complete authentication after successful status
-   */
   async completeAuth(
     sessionId: string
-  ): Promise<{ success: boolean; user?: any; error?: string }> {
+  ): Promise<{ success: boolean; token?: string; user?: any; error?: string }> {
     try {
       const response = await apiClient.post('/auth/bankid/complete', {
         sessionId,
       });
 
-      if (response.data.success) {
+      if (response.data.token) {
         return {
           success: true,
+          token: response.data.token,
           user: response.data.user,
         };
       }
@@ -214,14 +188,11 @@ class BankIDAuthService {
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Authentication completion failed',
+        error: error.response?.data?.error || error.message || 'Authentication completion failed',
       };
     }
   }
 
-  /**
-   * Map BankID status to SSO session status
-   */
   private mapBankIDStatus(
     status: BankIDStatusResponse['status']
   ): SSOSession['status'] {
@@ -238,9 +209,6 @@ class BankIDAuthService {
     }
   }
 
-  /**
-   * Get user-friendly message for hint codes
-   */
   private getHintMessage(hintCode?: string): string {
     const messages: Record<string, string> = {
       outstandingTransaction: 'Åpne BankID-appen på enheten din',
@@ -257,28 +225,17 @@ class BankIDAuthService {
     return hintCode ? messages[hintCode] || 'Ukjent feil' : 'Autentisering feilet';
   }
 
-  /**
-   * Get user's IP address
-   * In production, this should be determined by the backend
-   */
   private async getUserIp(): Promise<string> {
     try {
-      // Backend should determine the actual IP
-      // This is a placeholder for the client-side call
       const response = await fetch('https://api.ipify.org?format=json');
       const data = await response.json();
       return data.ip;
     } catch (error) {
-      // Fallback - backend will use request IP
       return '0.0.0.0';
     }
   }
 
-  /**
-   * Validate BankID is configured
-   */
   isConfigured(): boolean {
-    // BankID configuration is backend-side
     return true;
   }
 }
