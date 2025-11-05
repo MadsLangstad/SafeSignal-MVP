@@ -38,8 +38,8 @@ public class AlertRepository : Repository<Alert>, IAlertRepository
                 .ThenInclude(c => c.User)
             .Include(a => a.FirstClearanceUser)
             .Include(a => a.SecondClearanceUser)
-            .Include(a => a.Building)
-            .Include(a => a.Room)
+            .Include(a => a.Building!)
+            .Include(a => a.Room!)
             .FirstOrDefaultAsync(a => a.Id == id);
     }
 

@@ -13,4 +13,5 @@ public class Building
     // Navigation properties
     public Site Site { get; set; } = null!;
     public ICollection<Floor> Floors { get; set; } = new List<Floor>();
+    public ICollection<Alert> Alerts { get; set; } = new List<Alert>();
 }

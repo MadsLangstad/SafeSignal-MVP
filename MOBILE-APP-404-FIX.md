@@ -141,7 +141,31 @@ public async Task<ActionResult<ClearAlertResponse>> ClearAlert(Guid id, [FromBod
 - `mobile/src/screens/AlertClearanceScreen.tsx` - Clearance submission UI
 
 ## Status
-- **Backend**: Working (API endpoints functional via curl)
-- **Mobile**: 404 errors due to JWT claim or org validation issue
-- **Database**: Correct (alert and organization data verified)
-- **Fix**: Check JWT claims and controller validation logic
+✅ **FIXED** - 2025-11-04
+
+### Root Cause
+The `Building` navigation property relationship was missing from the EF Core DbContext configuration. When the controller called `GetByIdWithClearancesAsync()` which includes `.Include(a => a.Building)`, EF Core couldn't resolve the relationship and returned null, causing the 404 error.
+
+### Solution Applied
+**File: `cloud-backend/src/Infrastructure/Data/SafeSignalDbContext.cs`**
+Added the Building relationship configuration in the Alert entity:
+```csharp
+entity.HasOne(e => e.Building)
+    .WithMany(b => b.Alerts)
+    .HasForeignKey(e => e.BuildingId)
+    .OnDelete(DeleteBehavior.SetNull);
+```
+
+**File: `cloud-backend/src/Core/Entities/Building.cs`**
+Added the Alerts collection navigation property:
+```csharp
+public ICollection<Alert> Alerts { get; set; } = new List<Alert>();
+```
+
+### Verification
+All endpoints now return 200 OK:
+- ✅ GET `/api/alerts/{id}` - Returns alert details
+- ✅ GET `/api/alerts/{id}/clearances` - Returns clearance history
+- ✅ POST `/api/alerts/{id}/clear` - Successfully records clearances
+
+**Note**: The JWT token was already correctly configured with the `organizationId` claim. The issue was purely the missing EF Core relationship configuration.

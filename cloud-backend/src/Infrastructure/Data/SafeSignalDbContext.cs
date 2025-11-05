@@ -176,6 +176,11 @@ public class SafeSignalDbContext : DbContext
                 .HasForeignKey(e => e.OrganizationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(e => e.Building)
+                .WithMany(b => b.Alerts)
+                .HasForeignKey(e => e.BuildingId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasOne(e => e.Device)
                 .WithMany(d => d.Alerts)
                 .HasForeignKey(e => e.DeviceId)
