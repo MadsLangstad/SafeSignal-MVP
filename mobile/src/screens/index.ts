@@ -1,5 +1,5 @@
 // Screen exports
-export { default as LoginScreen } from './LoginScreen.enhanced';
+export { default as LoginScreen } from './LoginScreen';
 export { default as BankIDAuthScreen } from './BankIDAuthScreen';
 export { default as HomeScreen } from './HomeScreen';
 export { default as AlertHistoryScreen } from './AlertHistoryScreen';

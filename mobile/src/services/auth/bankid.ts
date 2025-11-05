@@ -34,7 +34,7 @@ class BankIDAuthService {
     } catch (error) { console.warn('Failed to launch BankID app:', error); }
   }
 
-  async pollStatus(sessionId: string, onStatusChange?: (status: SSOSession) => void): Promise<SSOSession> {
+  async pollStatus(sessionId: string, onStatusChange?: (status: SSOSession) => void, initialQrData?: string, initialAutoStartToken?: string): Promise<SSOSession> {
     let attempts = 0;
     return new Promise((resolve) => {
       this.pollingTimer = setInterval(async () => {
@@ -42,16 +42,25 @@ class BankIDAuthService {
         try {
           const response = await axios.get<BankIDStatusResponse>(`${API_CONFIG.BASE_URL}/auth/bankid/status/${sessionId}`);
           const { status, hintCode } = response.data;
-          const session: SSOSession = { provider: 'bankid', sessionId, status: this.mapBankIDStatus(status), bankid: { qrCodeData: '', autoStartToken: '', hintCode } };
-          
+          const session: SSOSession = {
+            provider: 'bankid',
+            sessionId,
+            status: this.mapBankIDStatus(status),
+            bankid: {
+              qrCodeData: initialQrData || '',
+              autoStartToken: initialAutoStartToken || '',
+              hintCode
+            }
+          };
+
           if (onStatusChange) onStatusChange(session);
-          
+
           if (status === 'complete') { this.stopPolling(); resolve({ ...session, status: 'completed' }); }
           else if (status === 'failed' || status === 'expired') { this.stopPolling(); resolve({ ...session, status: 'failed', error: this.getHintMessage(hintCode) }); }
           if (attempts >= this.maxPollAttempts) { this.stopPolling(); resolve({ ...session, status: 'expired', error: 'Authentication timed out' }); }
         } catch (error: any) {
           this.stopPolling();
-          resolve({ provider: 'bankid', sessionId, status: 'failed', error: error.message || 'Polling failed', bankid: { qrCodeData: '', autoStartToken: '' } });
+          resolve({ provider: 'bankid', sessionId, status: 'failed', error: error.message || 'Polling failed', bankid: { qrCodeData: initialQrData || '', autoStartToken: initialAutoStartToken || '' } });
         }
       }, this.pollInterval);
     });

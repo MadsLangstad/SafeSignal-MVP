@@ -66,6 +66,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (session.status === 'pending' && session.sessionId) {
+        // Store session and reset loading - token exchange will happen in backend callback
+        set({ ssoSession: session, isLoading: false });
+
         const result = await feideAuth.exchangeCodeForToken(
           session.sessionId,
           session.feide?.codeVerifier || ''
@@ -75,15 +78,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set({
             user: result.user,
             isAuthenticated: true,
-            isLoading: false,
             ssoSession: { ...session, status: 'completed' },
           });
           return true;
         }
 
         set({
-          isLoading: false,
           error: result.error || 'Feide authentication failed',
+          ssoSession: null,
         });
         return false;
       }
@@ -105,7 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return false;
       }
 
-      set({ ssoSession: session });
+      set({ ssoSession: session, isLoading: false });
       return true;
     } catch (error: any) {
       set({ isLoading: false, error: error.message || 'BankID authentication failed' });
@@ -120,7 +122,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const updatedSession = await bankIDAuth.pollStatus(
         ssoSession.sessionId,
-        (session) => set({ ssoSession: session })
+        (session: SSOSession) => set({ ssoSession: session }),
+        ssoSession.bankid?.qrCodeData,
+        ssoSession.bankid?.autoStartToken
       );
 
       if (updatedSession.status === 'completed') {
