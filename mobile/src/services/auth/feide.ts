@@ -21,7 +21,11 @@ class FeideAuthService {
   }
 
   private async generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
-    const codeVerifier = Crypto.randomUUID();
+    // Generate 32 random bytes (will become 43 characters when base64url encoded)
+    const randomBytes = await Crypto.getRandomBytesAsync(32);
+    const base64 = btoa(String.fromCharCode(...randomBytes));
+    const codeVerifier = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
     const codeChallengeBuffer = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, codeVerifier, { encoding: Crypto.CryptoEncoding.BASE64 });
     const codeChallenge = codeChallengeBuffer.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     return { codeVerifier, codeChallenge };
@@ -61,11 +65,15 @@ class FeideAuthService {
     }
   }
 
-  async exchangeCodeForToken(code: string, codeVerifier: string): Promise<{ success: boolean; token?: string; user?: any; error?: string }> {
+  async exchangeCodeForToken(code: string, codeVerifier: string): Promise<{ success: boolean; tokens?: { accessToken: string; refreshToken: string; expiresAt: string }; user?: any; error?: string }> {
     try {
-      const response = await axios.post(`${API_CONFIG.BASE_URL}/auth/feide/callback`, { code, codeVerifier, redirectUri: this.redirectUri });
-      if (response.data.token) {
-        return { success: true, token: response.data.token, user: response.data.user };
+      const response = await axios.post(`${API_CONFIG.BASE_URL}/api/auth/feide/callback`, { code, codeVerifier, redirectUri: this.redirectUri });
+      if (response.data.tokens && response.data.user) {
+        return {
+          success: true,
+          tokens: response.data.tokens,
+          user: response.data.user
+        };
       }
       return { success: false, error: response.data.error || 'Failed to exchange code' };
     } catch (error: any) {

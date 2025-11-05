@@ -74,7 +74,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           session.feide?.codeVerifier || ''
         );
 
-        if (result.success && result.user) {
+        if (result.success && result.user && result.tokens) {
+          // Persist tokens to secure storage
+          await secureStorage.saveTokens({
+            accessToken: result.tokens.accessToken,
+            refreshToken: result.tokens.refreshToken,
+            expiresAt: new Date(result.tokens.expiresAt),
+          });
+          await secureStorage.saveUser(result.user);
+
           set({
             user: result.user,
             isAuthenticated: true,
@@ -129,7 +137,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (updatedSession.status === 'completed') {
         const result = await bankIDAuth.completeAuth(ssoSession.sessionId);
-        if (result.success && result.user) {
+        if (result.success && result.user && result.tokens) {
+          // Persist tokens to secure storage
+          await secureStorage.saveTokens({
+            accessToken: result.tokens.accessToken,
+            refreshToken: result.tokens.refreshToken,
+            expiresAt: new Date(result.tokens.expiresAt),
+          });
+          await secureStorage.saveUser(result.user);
+
           set({
             user: result.user,
             isAuthenticated: true,

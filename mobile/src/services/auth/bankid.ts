@@ -12,7 +12,7 @@ class BankIDAuthService {
     try {
       const endUserIp = await this.getUserIp();
       const request: any = { endUserIp, ...(personalNumber && { personalNumber }) };
-      const response = await axios.post<BankIDInitResponse>(`${API_CONFIG.BASE_URL}/auth/bankid/initiate`, request);
+      const response = await axios.post<BankIDInitResponse>(`${API_CONFIG.BASE_URL}/api/auth/bankid/initiate`, request);
       
       if (!response.data) throw new Error('Failed to initiate BankID authentication');
       
@@ -40,7 +40,7 @@ class BankIDAuthService {
       this.pollingTimer = setInterval(async () => {
         attempts++;
         try {
-          const response = await axios.get<BankIDStatusResponse>(`${API_CONFIG.BASE_URL}/auth/bankid/status/${sessionId}`);
+          const response = await axios.get<BankIDStatusResponse>(`${API_CONFIG.BASE_URL}/api/auth/bankid/status/${sessionId}`);
           const { status, hintCode } = response.data;
           const session: SSOSession = {
             provider: 'bankid',
@@ -69,14 +69,20 @@ class BankIDAuthService {
   stopPolling(): void { if (this.pollingTimer) { clearInterval(this.pollingTimer); this.pollingTimer = null; } }
 
   async cancelAuth(sessionId: string): Promise<void> {
-    try { this.stopPolling(); await axios.post(`${API_CONFIG.BASE_URL}/auth/bankid/cancel/${sessionId}`); }
+    try { this.stopPolling(); await axios.post(`${API_CONFIG.BASE_URL}/api/auth/bankid/cancel/${sessionId}`); }
     catch (error) { console.warn('Failed to cancel BankID session:', error); }
   }
 
-  async completeAuth(sessionId: string): Promise<{ success: boolean; token?: string; user?: any; error?: string }> {
+  async completeAuth(sessionId: string): Promise<{ success: boolean; tokens?: { accessToken: string; refreshToken: string; expiresAt: string }; user?: any; error?: string }> {
     try {
-      const response = await axios.post(`${API_CONFIG.BASE_URL}/auth/bankid/complete`, { sessionId });
-      if (response.data.token) return { success: true, token: response.data.token, user: response.data.user };
+      const response = await axios.post(`${API_CONFIG.BASE_URL}/api/auth/bankid/complete`, { sessionId });
+      if (response.data.tokens && response.data.user) {
+        return {
+          success: true,
+          tokens: response.data.tokens,
+          user: response.data.user
+        };
+      }
       return { success: false, error: response.data.error || 'Failed to complete authentication' };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.error || error.message || 'Authentication completion failed' };
