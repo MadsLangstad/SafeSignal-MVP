@@ -1,7 +1,8 @@
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
-import { apiClient } from '../api';
+import axios from 'axios';
+import { API_CONFIG } from '../../constants';
 import type { SSOSession } from '../../types/auth';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -62,7 +63,7 @@ class FeideAuthService {
 
   async exchangeCodeForToken(code: string, codeVerifier: string): Promise<{ success: boolean; token?: string; user?: any; error?: string }> {
     try {
-      const response = await apiClient.post('/auth/feide/callback', { code, codeVerifier, redirectUri: this.redirectUri });
+      const response = await axios.post(`${API_CONFIG.BASE_URL}/auth/feide/callback`, { code, codeVerifier, redirectUri: this.redirectUri });
       if (response.data.token) {
         return { success: true, token: response.data.token, user: response.data.user };
       }
