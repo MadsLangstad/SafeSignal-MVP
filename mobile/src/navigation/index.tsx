@@ -5,21 +5,24 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-// Import screens (we'll create these next)
-import LoginScreen from '../screens/LoginScreen';
-import HomeScreen from '../screens/HomeScreen';
-import AlertHistoryScreen from '../screens/AlertHistoryScreen';
-import AlertClearanceScreen from '../screens/AlertClearanceScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-import AlertConfirmationScreen from '../screens/AlertConfirmationScreen';
-import AlertSuccessScreen from '../screens/AlertSuccessScreen';
+// Import screens
+import {
+  LoginScreen,
+  BankIDAuthScreen,
+  HomeScreen,
+  AlertHistoryScreen,
+  AlertClearanceScreen,
+  SettingsScreen,
+  AlertConfirmationScreen,
+  AlertSuccessScreen,
+} from '../screens';
 
-import { useAppStore } from '../store';
+import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
-import { SafeSignalHorizontalLogo } from '../components';
 
 export type RootStackParamList = {
   Auth: undefined;
+  BankIDAuth: undefined;
   Main: undefined;
   AlertConfirmation: { mode: 'SILENT' | 'AUDIBLE' | 'LOCKDOWN' | 'EVACUATION' };
   AlertSuccess: {
@@ -79,13 +82,23 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
-  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false as boolean }}>
         {!isAuthenticated ? (
-          <RootStack.Screen name="Auth" component={LoginScreen} />
+          <>
+            <RootStack.Screen name="Auth" component={LoginScreen} />
+            <RootStack.Screen
+              name="BankIDAuth"
+              component={BankIDAuthScreen}
+              options={{
+                presentation: 'modal',
+                headerShown: false as boolean,
+              }}
+            />
+          </>
         ) : (
           <>
             <RootStack.Screen name="Main" component={MainTabs} />
